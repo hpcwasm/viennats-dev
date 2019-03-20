@@ -674,6 +674,7 @@ struct ReportError {
 
         //Open file
         std::string input;
+        std::cout << fileName << std::endl;
         std::ifstream inFile(fileName);
         if(inFile){
             std::ostringstream oss;

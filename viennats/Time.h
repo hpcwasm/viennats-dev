@@ -13,15 +13,25 @@
    License:         MIT (X11), see file LICENSE in the base directory
 ============================================================================= */
 
-
-#include <omp.h>
+#if defined(_OPENMP)
+  #include <omp.h>
+#else
+  #include <chrono>
+#endif
 
 namespace my {
   ///Namespace for time or timing related methods.
   namespace time {
 
     double GetTime() {
+#if defined(_OPENMP) 
       return omp_get_wtime();
+#else
+      const auto now = std::chrono::system_clock::now();
+      const auto duration = now.time_since_epoch();
+      const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+      return millis/1000.0;
+#endif
     }
 
   }

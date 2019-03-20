@@ -17,7 +17,9 @@
 #include "Math.h"
 #include <cmath>
 #include <cstdlib>
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 //#include "sprng/sprng.h"
 #include <chrono>
 #include <random>

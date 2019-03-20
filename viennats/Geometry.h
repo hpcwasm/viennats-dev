@@ -27,6 +27,12 @@ License:         MIT (X11), see file LICENSE in the base directory
 #endif
 
 
+#if defined(BUILD_WASM)
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
+#include "vtswasm.h"
+#endif
+
 ///  Includes all Geometry In- and Output-related functions.
 namespace geometry {
 
@@ -696,6 +702,9 @@ namespace geometry {
         f<< Materials[i] << std::endl;
       }
       f.close();
+      #if defined(BUILD_WASM)
+      vtswasm::FileReady(FileName);
+      #endif        
     }
 
     void Write(const std::string& FileName) const {
@@ -809,6 +818,9 @@ namespace geometry {
       }
 
       f.close();
+      #if defined(BUILD_WASM)
+      vtswasm::FileReady(FileName);
+      #endif      
     }
 
     void ReadVTK(  std::string FileName,

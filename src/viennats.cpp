@@ -61,6 +61,7 @@
 
 #include <cassert>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <list>
 
@@ -521,6 +522,7 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
   }
 }
 
+#if not defined(BUILD_WASM)
 /**
 *  Main function: Times the whole program and passes parameters to main_()
 */
@@ -656,3 +658,131 @@ int main(int argc, char *argv[]) {
   return 0;
 
 }
+#endif // #if not defined(BUILD_WASM)
+
+#if defined(BUILD_WASM)
+#include "vtswasm.h"
+
+// using namespace emscripten;
+
+int myrun() {
+  std::cout << "myrun()" << std::endl;
+  std::cout << "myrun()" << std::endl;
+  std::cout << "myrun()" << std::endl;
+  std::cout << "myrun()" << std::endl;
+  std::cout << "myrun()" << std::endl;
+
+
+  double timer = my::time::GetTime();
+
+  msg::print_welcome();
+
+  //check intrinsic double-type
+  assert(std::numeric_limits<double>::is_iec559);
+
+  //!Read Parameters-File and populate Parameters class
+  client::Parameters p("assets/parwasm.txt");
+
+  //!Set maximum number of threads
+  #if defined(_OPENMP)
+    if (p.omp_threads>0) omp_set_num_threads(p.omp_threads);
+  #endif
+
+  //!Initialize number of dimensions and execute main_(const ParameterType2) accordingly
+  #ifdef DIMENSION_2
+    if (p.num_dimensions == 2)
+      main_<2, client::Parameters> (p);
+  #endif
+
+  #ifdef DIMENSION_3
+    if (p.num_dimensions == 3)
+      main_<3, client::Parameters> (p);
+  #endif
+
+  double exec_time = my::time::GetTime()-timer;
+  std::stringstream ss;
+  ss << exec_time;
+  msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
+  vtswasm::SimulationReady(exec_time);
+
+  return 0;
+
+}
+
+int runfile(const std::string filename) {
+  // std::string filename = "assets/parwasm.txt";
+  std::cout << "runfile(" << filename << ")" << std::endl;
+
+  double timer = my::time::GetTime();
+
+  msg::print_welcome();
+
+  //check intrinsic double-type
+  assert(std::numeric_limits<double>::is_iec559);
+
+  //!Read Parameters-File and populate Parameters class
+  client::Parameters p(filename);
+  std::cout << "runfile2"<<  std::endl;
+  //!Set maximum number of threads
+  #if defined(_OPENMP)
+    if (p.omp_threads>0) omp_set_num_threads(p.omp_threads);
+  #endif
+
+  //!Initialize number of dimensions and execute main_(const ParameterType2) accordingly
+  #ifdef DIMENSION_2
+    if (p.num_dimensions == 2)
+      main_<2, client::Parameters> (p);
+  #endif
+
+  #ifdef DIMENSION_3
+    if (p.num_dimensions == 3)
+      main_<3, client::Parameters> (p);
+  #endif
+
+  double exec_time = my::time::GetTime()-timer;
+  std::stringstream ss;
+  ss << exec_time;
+  msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
+
+  vtswasm::SimulationReady(exec_time);
+  return 0;
+
+}
+
+
+std::string getOutputFilename() {
+  return "some/path/to/a/file.vtk";
+}
+
+// https://stackoverflow.com/questions/12358877/passing-js-function-to-emscripten-generated-code
+// void cbTest(emscripten::val cb)
+// {
+//     cb();
+// }
+// void cbTestInt(emscripten::val cb)
+// {
+//   int a = 5;
+//     cb(a);
+// }
+// void cbTestString(emscripten::val cb)
+// {
+//  std::string str = "dddd";
+//     cb(str);
+// }
+
+
+    // emscripten::function("runfile", &runfile);
+
+EMSCRIPTEN_BINDINGS(viennatswasm) {
+    emscripten::function("myrun", &myrun);
+    emscripten::function("runfile", &runfile);
+    // emscripten::function("getOutputFilename", &getOutputFilename);
+    // emscripten::function("cbTest", &cbTest);
+    // emscripten::function("cbTestInt", &cbTestInt);
+    // emscripten::function("cbTestString", &cbTestString);
+
+    emscripten::class_<vtswasm>("vtswasm")
+    .class_function("SetCallback", &vtswasm::SetCallback)
+    ;
+}
+#endif

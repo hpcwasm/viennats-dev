@@ -1,0 +1,366 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <!-- The rest of your page's header here -->
+</head>
+<script src="codemirror/codemirror.js"></script>
+<link rel="stylesheet" href="codemirror/codemirror.css">
+<script src="codemirror/javascript.js"></script>
+<link rel="stylesheet" href="xterm.css" />
+<script src="xterm.js"></script>
+<script src="vtk.js"></script>
+<h3>viennaTS webassembly webworker</h3>
+<div id="browsername"></div>
+<small>you need one of: Edge>17, Firebox>52, Chrome>57, Safari/iOSSafari>11, Opera>44, Chome(Android)>70,
+  Firefox(Android)>63 </small>
+
+
+<div style="height:50px;"></div>
+
+<button id="runsim" style="font-weight: bold;"> </button>
+<button id="terminatesim" style="font-weight: bold;">terminate simulation</button>
+<div style="height:50px;"></div>
+
+<b>parameter file</b>
+<select id="ddownselect">
+  <option style="display:none"> -- select parameter file -- </option>
+</select>
+<button id="showscript">show/hide</button>
+<button id="resetscript">reset</button>
+
+
+<textarea id="textinput"></textarea>
+<div style="height:50px;"></div>
+<!-- <h3>vtk.js</h3> -->
+<b>result viewer</b>
+<button id="clearvtkview">clear</button>
+<div id="vtkview"></div>
+<div>left mouse: rotate | left mouse + shift: pan | scroll: zoom</div>
+<div style="height:50px;"></div>
+<!-- <h3>xterm.js</h3> -->
+<b>sdtout/stderr console</b>
+<button id="clearterm">clear</button>
+<div id="terminal" style="width:720px;"></div>
+<div>scroll: scroll</div>
+
+
+
+<script>
+
+  var browsername = document.getElementById('browsername');
+  var button = document.getElementById('runsim');
+  var buttonterminate = document.getElementById('terminatesim');
+  var buttonshow = document.getElementById('showscript');
+  var buttonresetscript = document.getElementById('resetscript');
+  var buttonclear = document.getElementById('clearvtkview');
+  var buttonclearterm = document.getElementById('clearterm');
+  button.disabled = true;
+  buttonterminate.disabled = true;
+  button.innerText = "initializing...";
+  var textinput = document.getElementById('textinput');
+  var terminal = document.getElementById('terminal');
+  var vtkview = document.getElementById('vtkview');
+
+  var ddownselect = document.getElementById('ddownselect');
+
+  var myCodeMirror = CodeMirror.fromTextArea(textinput, {
+    value: "",
+    mode: "javascript"
+  });
+
+  var scripthidden = false;
+
+  var togglescript = function () {
+    if (scripthidden) {
+      scripthidden = false;
+      document.getElementsByClassName('CodeMirror')[0].style.visibility = 'visible';
+      myCodeMirror.setSize(720, 400);
+    } else {
+      scripthidden = true;
+      document.getElementsByClassName('CodeMirror')[0].style.visibility = 'hidden';
+      myCodeMirror.setSize(720, 0);
+    }
+  }
+
+  buttonshow.addEventListener("click", togglescript);
+
+  togglescript();
+
+  var firstplot = true;
+  var currentactor = undefined;
+  var firstactor = undefined;
+
+  // function loadselectedscript() {
+  //   // console.log("change");
+  //   var selectedfilename = parfiles[ddownselect.selectedIndex - 1];
+  //   // console.log(selectedfilename);
+  //   var result = null;
+  //   var xmlhttp = new XMLHttpRequest();
+  //   xmlhttp.open("GET", "assets/" + selectedfilename, false);
+  //   xmlhttp.send();
+  //   if (xmlhttp.status == 200) {
+  //     result = xmlhttp.responseText;
+  //   }
+  //   // textinput.value = result;
+  //   myCodeMirror.setValue(result);
+  // }
+
+  function loadselectedscript() {
+    // console.log("change");
+    var selectedfilename = parfiles[ddownselect.selectedIndex - 1];
+    // console.log(selectedfilename);
+    var result = null;
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", "assets/" + selectedfilename, true);
+
+    xmlhttp.onload = function (e) {
+      if (xmlhttp.readyState === 4) {
+        if (xmlhttp.status == 200) {
+          result = xmlhttp.responseText;
+        }
+        myCodeMirror.setValue(result);
+      }
+    };
+    xmlhttp.onerror = function (e) {
+      console.error(xmlhttp.statusText);
+    };
+    xmlhttp.send(null);
+  }
+
+  var parfiles = ["parwasm_CFx_Deposition.txt", "parwasm_Deposition.txt", "parwasm_ConstantDeposition.txt", "parwasm_SF6_CH2F2.txt", "parwasm_SF6_Etching.txt", "parwasm_TEOS_Deposition.txt"];
+  for (var i = 0; i < parfiles.length; i++) {
+    var opt = parfiles[i];
+    var el = document.createElement("option");
+    el.textContent = String(opt);
+    el.value = String(opt);
+    ddownselect.appendChild(el);
+  };
+
+  var activescriptID = 3;
+  ddownselect.selectedIndex = activescriptID;
+  loadselectedscript();
+
+
+  ddownselect.addEventListener("change", loadselectedscript);
+
+
+
+  navigator.sayswho = (function () {
+    var ua = navigator.userAgent, tem,
+      M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+    if (/trident/i.test(M[1])) {
+      tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+      return 'IE ' + (tem[1] || '');
+    }
+    if (M[1] === 'Chrome') {
+      tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
+      if (tem != null) return tem.slice(1).join(' ').replace('OPR', 'Opera');
+    }
+    M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, '-?'];
+    if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+    return M.join(' ');
+  })();
+  browsername.innerHTML = "your browser version is: \'" + navigator.sayswho + "\'";
+
+  // xterm terminal
+  var xterm = new Terminal();
+  // xterm.setOption('theme', LIGHT_THEME);
+  // xterm.setOption('theme', { foreground: '#000000' });  
+  // xterm.setOption('theme', { background: '#eeeeee' });  
+  xterm.open(terminal);
+
+
+  // vtk view
+  var background = [0.3, 0.3, 0.3];
+  var fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+    background,
+    rootContainer: vtkview,
+    containerStyle: { height: '500px', width: '720px', position: 'relative' },
+  })
+  var renderer = fullScreenRenderer.getRenderer();
+  var renderWindow = fullScreenRenderer.getRenderWindow();
+  renderer.resetCamera();
+
+  // var conesource = vtk.Filters.Sources.vtkConeSource.newInstance({ height: 1.0 })
+  // var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+  // mapper.setInputConnection(conesource.getOutputPort());
+
+  // var actor = vtk.Rendering.Core.vtkActor.newInstance();
+  // actor.setMapper(mapper);
+
+  // renderer.addActor(actor);
+  renderer.resetCamera();
+  renderWindow.render();
+
+
+  function loadParFile() {
+    var result = null;
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", "assets/parwasm.txt", false);
+    xmlhttp.send();
+    if (xmlhttp.status == 200) {
+      result = xmlhttp.responseText;
+    }
+    return result;
+  }
+
+
+
+  // textinput.value = loadParFile();
+
+
+  var resetscript = function () {
+    loadselectedscript();
+  };
+  buttonresetscript.addEventListener("click", resetscript);
+
+
+  var vtsworker = new Worker('vtsworker.js');
+  // button
+  var runsim = function () {
+    // mysimulation = { 'parfile': "assets/parwasm.txt" };
+    // mysimulation = { 'parfilestring': textinput.value };
+    mysimulation = { 'parfilestring': myCodeMirror.getValue() };
+    vtsworker.postMessage(mysimulation);
+    button.disabled = true;
+    buttonterminate.disabled = false;
+    button.innerText = "running...";
+  };
+  button.addEventListener("click", runsim);
+
+
+
+  var clearview = function () {
+    renderer.removeAllViewProps()
+    renderer.resetCamera()
+    firstplot = true;
+    renderWindow.render()
+  };
+  buttonclear.addEventListener("click", clearview);
+
+  var clearterm = function () {
+    xterm.clear();
+  };
+  buttonclearterm.addEventListener("click", clearterm);
+
+  // if message from worker is incoming
+
+
+  var workerevents = function (e) {
+    console.log('(main) message received from vtsworker');
+
+    if (e.data.runtimeready === true) {
+      console.log('(main) message received: runtimeready');
+      button.disabled = false;
+      buttonterminate.disabled = false;
+      button.innerText = "run simulation";
+    }
+    else if (e.data.simready === true) {
+      console.log('(main) message received: simready');
+      button.disabled = false;
+      buttonterminate.disabled = false;
+      button.innerText = "run simulation";
+
+    }
+    else if (e.data.fileready === true) {
+      console.log('(main) message received: fileready, file=' + e.data.filename);
+
+      if (e.data.filename.endsWith(".vtp")) {
+        console.log("VTPrreadder=" + e.data.filename);
+        // console.log(e.data.filecontent);
+        const encoder = new TextEncoder('utf-8');
+        const buffer = encoder.encode(e.data.filecontent);
+        var vtpReader = vtk.IO.XML.vtkXMLPolyDataReader.newInstance();
+        vtpReader.parseAsArrayBuffer(buffer);
+        var polydata = vtpReader.getOutputData(0);
+        var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+        var actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+        actor.setMapper(mapper);
+        mapper.setInputData(polydata);
+
+        // count number of actors
+        if (firstplot) {
+          console.log("(main) first plot of results");
+          renderer.removeAllViewProps()
+          renderer.addActor(actor);
+          var firstactor = actor;
+          renderer.resetCamera();
+          firstplot = false;
+        } else {
+          renderer.removeActor(currentactor);
+          renderer.addActor(actor);
+          currentactor = actor;
+
+        }
+        renderWindow.render();
+
+
+      }
+      // if (e.data.filename.endsWith(".vtk")) {
+      //   var reader = vtk.IO.Legacy.vtkPolyDataReader.newInstance();
+      //   // var vtpReader = vtk.IO.XML.vtkXMLPolyDataReader.newInstance();
+      //   reader.parseAsArrayBuffer(e.data.filecontent.buffer)
+      //   // newWindow = window.open(e.data.filecontent.buffer, 'neuesDokument');
+      //   // vtpReader.parseAsText(e.data.filecontent);
+      //   var polydata = vtpReader.getOutputData(0);
+      //   var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+      //   var actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+      //   actor.setMapper(mapper);
+      //   mapper.setInputData(polydata);
+      //   renderer.addActor(actor);
+      //   renderer.resetCamera();
+      //   renderWindow.render();
+
+
+
+      // }
+    }
+    else if (e.data.stdout === true || e.data.stderr === true) {
+      // console.log('(main) message received: stdout/stderr, text=' + e.data.text);
+      xterm.writeln(e.data.text);
+    }
+    else if (e.data.runtimeexception === true) {
+      button.disabled = true;
+      buttonterminate.disabled = true;
+      xterm.writeln("WEBWORKER SAYS: runtime exception occured in C++, respawning webworker");
+      console.log("(main) webworker reported a runtime exception in C++");
+      if (vtsworker !== undefined) {
+        vtsworker.terminate();
+      }
+      vtsworker = new Worker('vtsworker.js');
+      vtsworker.addEventListener('message', workerevents);
+
+    }
+    else {
+      console.log("unknown message");
+    }
+  }
+
+
+  var terminateworker = function () {
+    button.disabled = true;
+    buttonterminate.disabled = true;
+    button.innerText = "initializing...";
+    xterm.writeln("WEBWORKER: worker beeing terminated through main thread");
+    console.log("(main) webworker is terminated");
+    if (vtsworker !== undefined) {
+      vtsworker.terminate();
+    }
+    vtsworker = new Worker('vtsworker.js');
+    vtsworker.addEventListener('message', workerevents);
+    firstplot = true;
+  };
+  buttonterminate.addEventListener("click", terminateworker);
+
+
+  vtsworker.addEventListener('message', workerevents);
+
+</script>
+
+
+
+</html>

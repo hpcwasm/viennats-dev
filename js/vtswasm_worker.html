@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+
+<link rel="stylesheet" href="xterm.css" />
+<script src="xterm.js"></script>
+<script src="vtk.js"></script>
+<h1>viennaTS webassembly webworker</h1>
+<div id="browsername">your browser version is:&nbsp;</div>
+<button id="runsim">run script</button>
+<button id="resetscript">reset</button>
+
+<div><textarea id="textinput" style="width:720px;height:300px;"></textarea></div>
+<div id="textoutput"></div>
+<h3>xterm.js</h3>
+<button id="clearterm">clear</button>
+<div id="terminal" style="width:720px;"></div>
+<h3>vtk.js</h3>
+<button id="clearvtkview">clear</button>
+<div id="vtkview"></div>
+
+
+
+<script>
+
+  
+  var browsername = document.getElementById('browsername');
+  var button = document.getElementById('runsim');
+  var buttonresetscript = document.getElementById('resetscript');
+  var buttonclear = document.getElementById('clearvtkview');
+  var buttonclearterm = document.getElementById('clearterm');
+  button.disabled = true;
+  var textinput = document.getElementById('textinput');
+  var textoutput = document.getElementById('textoutput');
+  var terminal = document.getElementById('terminal');
+  var vtkview = document.getElementById('vtkview');
+
+  navigator.sayswho = (function () {
+    var ua = navigator.userAgent, tem,
+      M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
+    if (/trident/i.test(M[1])) {
+      tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
+      return 'IE ' + (tem[1] || '');
+    }
+    if (M[1] === 'Chrome') {
+      tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
+      if (tem != null) return tem.slice(1).join(' ').replace('OPR', 'Opera');
+    }
+    M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, '-?'];
+    if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
+    return M.join(' ');
+  })();
+  browsername.innerHTML = "Your browser version is: \'" +navigator.sayswho + "\'";
+
+  // xterm terminal
+  var xterm = new Terminal();
+  // xterm.setOption('theme', LIGHT_THEME);
+  // xterm.setOption('theme', { foreground: '#000000' });  
+  // xterm.setOption('theme', { background: '#eeeeee' });  
+  xterm.open(terminal);
+
+
+  // vtk view
+  var background = [0.3, 0.3, 0.3];
+  var fullScreenRenderer = vtk.Rendering.Misc.vtkFullScreenRenderWindow.newInstance({
+    background,
+    rootContainer: vtkview,
+    containerStyle: { height: '500px', width: '720px', position: 'relative' },
+  })
+  var renderer = fullScreenRenderer.getRenderer();
+  var renderWindow = fullScreenRenderer.getRenderWindow();
+  renderer.resetCamera();
+
+  // var conesource = vtk.Filters.Sources.vtkConeSource.newInstance({ height: 1.0 })
+  // var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+  // mapper.setInputConnection(conesource.getOutputPort());
+
+  // var actor = vtk.Rendering.Core.vtkActor.newInstance();
+  // actor.setMapper(mapper);
+
+  // renderer.addActor(actor);
+  renderer.resetCamera();
+  renderWindow.render();
+
+
+  function loadParFile() {
+    var result = null;
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("GET", "assets/parwasm.txt", false);
+    xmlhttp.send();
+    if (xmlhttp.status == 200) {
+      result = xmlhttp.responseText;
+    }
+    return result;
+  }
+
+  textinput.value = loadParFile();
+
+  // events
+  // textinput.addEventListener("input", function () {
+  //   textoutput.innerHTML = textinput.value;
+  // });
+
+  var resetscript = function () {
+    textinput.value = loadParFile();
+  };
+  buttonresetscript.addEventListener("click", resetscript);
+
+
+  var vtsworker = new Worker('vtsworker.js');
+  // button
+  var runsim = function () {
+    // mysimulation = { 'parfile': "assets/parwasm.txt" };
+    mysimulation = { 'parfilestring': textinput.value };
+    vtsworker.postMessage(mysimulation);
+    button.disabled = true;
+  };
+  button.addEventListener("click", runsim);
+
+
+  var clearview = function () {
+    renderer.removeAllViewProps()
+    renderer.resetCamera()
+    renderWindow.render()
+  };
+  buttonclear.addEventListener("click", clearview);
+
+  var clearterm = function () {
+    xterm.clear();
+  };
+  buttonclearterm.addEventListener("click", clearterm);
+
+  // if message from worker is incoming
+
+
+  var workerevents = function (e) {
+    console.log('(main) message received from vtsworker');
+
+    if (e.data.runtimeready === true) {
+      console.log('(main) message received: runtimeready');
+      button.disabled = false;
+    }
+    else if (e.data.simready === true) {
+      console.log('(main) message received: simready');
+      button.disabled = false;
+
+    }
+    else if (e.data.fileready === true) {
+      console.log('(main) message received: fileready, file=' + e.data.filename);
+
+      if (e.data.filename.endsWith(".vtp")) {
+        console.log("VTPrreadder=" + e.data.filename);
+        // console.log(e.data.filecontent);
+        const encoder = new TextEncoder('utf-8');
+        const buffer = encoder.encode(e.data.filecontent);
+        var vtpReader = vtk.IO.XML.vtkXMLPolyDataReader.newInstance();
+        vtpReader.parseAsArrayBuffer(buffer);
+        var polydata = vtpReader.getOutputData(0);
+        var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+        var actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+        actor.setMapper(mapper);
+        mapper.setInputData(polydata);
+        renderer.addActor(actor);
+        renderer.resetCamera();
+        renderWindow.render();
+
+
+      }
+      // if (e.data.filename.endsWith(".vtk")) {
+      //   var reader = vtk.IO.Legacy.vtkPolyDataReader.newInstance();
+      //   // var vtpReader = vtk.IO.XML.vtkXMLPolyDataReader.newInstance();
+      //   reader.parseAsArrayBuffer(e.data.filecontent.buffer)
+      //   // newWindow = window.open(e.data.filecontent.buffer, 'neuesDokument');
+      //   // vtpReader.parseAsText(e.data.filecontent);
+      //   var polydata = vtpReader.getOutputData(0);
+      //   var mapper = vtk.Rendering.Core.vtkMapper.newInstance();
+      //   var actor = vtk.Rendering.Core.vtkActor.newInstance();
+
+      //   actor.setMapper(mapper);
+      //   mapper.setInputData(polydata);
+      //   renderer.addActor(actor);
+      //   renderer.resetCamera();
+      //   renderWindow.render();
+
+
+
+      // }
+    }
+    else if (e.data.stdout === true || e.data.stderr === true) {
+      // console.log('(main) message received: stdout/stderr, text=' + e.data.text);
+      xterm.writeln(e.data.text);
+    }
+    else if (e.data.runtimeexception === true) {
+      button.disabled = true;
+      xterm.writeln("WEBWORKER SAYS: runtime exception occured in C++, respawning webworker");
+      console.log("(main) webworker reported a runtime exception in C++");
+      if (vtsworker !== undefined) {
+        vtsworker.terminate();
+      }
+      vtsworker = new Worker('vtsworker.js');
+      vtsworker.addEventListener('message', workerevents);
+
+    }
+    else {
+      console.log("unknown message");
+    }
+  }
+
+  vtsworker.addEventListener('message', workerevents);
+
+</script>
+
+
+
+</html>

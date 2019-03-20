@@ -23,6 +23,13 @@
 #include "levelset2volume.hpp"
 #include "../message.h"
 
+
+
+#if defined(BUILD_WASM)
+#include "vtswasm.h"
+#include "wasmvtk.h"
+#endif
+
 //Options for levelset output
 #define LVST_FILE_VERSION_NUMBER 1
 
@@ -95,6 +102,9 @@ namespace lvlset {
         SurfaceList(int nb_surf):dim(D), nsurfaces(nb_surf) {}
       };
     }
+
+    template<typename D>
+    using OutputSurface = Surface<D>;    
 
     namespace {
 
@@ -295,6 +305,11 @@ namespace lvlset {
 
 
         f.close();
+#if defined(BUILD_WASM)
+        wasm::writeVTP(s, filename + ".vtp");
+        wasm::vtswasm::FileReady(filename + ".vtp");
+        wasm::vtswasm::FileReady(filename);
+#endif        
     }
 
     template <class GridTraitsType, class LevelSetTraitsType>
