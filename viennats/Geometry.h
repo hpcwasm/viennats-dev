@@ -703,7 +703,7 @@ namespace geometry {
       }
       f.close();
       #if defined(BUILD_WASM)
-      vtswasm::FileReady(FileName);
+      wasm::vtswasm::FileReady(FileName);
       #endif        
     }
 
@@ -819,7 +819,7 @@ namespace geometry {
 
       f.close();
       #if defined(BUILD_WASM)
-      vtswasm::FileReady(FileName);
+      wasm::vtswasm::FileReady(FileName);
       #endif      
     }
 

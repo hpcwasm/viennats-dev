@@ -26,8 +26,19 @@
 
 
 #if defined(BUILD_WASM)
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
+#include <vtkDoubleArray.h>
+#include <vtkLine.h>
+#include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkQuad.h>
+#include <vtkSmartPointer.h>
+#include <vtkTriangle.h>
+#include <vtkXMLPolyDataReader.h>
+#include <vtkXMLPolyDataWriter.h>
 #include "vtswasm.h"
-#include "wasmvtk.h"
 #endif
 
 //Options for levelset output
@@ -51,6 +62,7 @@
 #define  INT56_MIN -36028797018963968LL //  lowest  value of 3 signed   bytes -2^55
 
 namespace lvlset {
+
 
     namespace {
 
@@ -103,8 +115,63 @@ namespace lvlset {
       };
     }
 
-    template<typename D>
-    using OutputSurface = Surface<D>;    
+#if defined(BUILD_WASM)
+    template <int D>
+    void writeVTP(const Surface<D> &surface, const std::string &filename) {
+
+    auto VTKpolygons = vtkSmartPointer<vtkCellArray>::New();
+    auto VTKpolydata = vtkSmartPointer<vtkPolyData>::New();
+    auto VTKpoints = vtkSmartPointer<vtkPoints>::New();
+    // VTKpoints->SetDataTypeToDouble();
+
+    std::cout << "VTP D=" << D << std::endl;
+    // points
+    for (unsigned int i = 0; i < surface.Nodes.size(); i++) {
+        const double x = surface.Nodes[i][0];
+        const double y = surface.Nodes[i][1];
+        const double z = D == 3 ? surface.Nodes[i][2] : 0.0;
+        double xyz[3] = {x, y, z};
+        VTKpoints->InsertNextPoint(xyz);
+    }
+    std::cout << "VTP num points=" << surface.Nodes.size() << std::endl;
+
+    if (D == 3) { // cells == triangles
+        for (unsigned int i = 0; i < surface.Elements.size(); i++) {
+        auto tmptriangle = vtkSmartPointer<vtkTriangle>::New();
+        tmptriangle->GetPointIds()->SetId(0, surface.Elements[i][0]);
+        tmptriangle->GetPointIds()->SetId(1, surface.Elements[i][1]);
+        tmptriangle->GetPointIds()->SetId(2, surface.Elements[i][2]);
+        VTKpolygons->InsertNextCell(tmptriangle);
+        }
+        std::cout << "VTP num triangles=" << surface.Elements.size() << std::endl;
+
+    } else if (D == 2) { // cells == lines
+        for (unsigned int i = 0; i < surface.Elements.size(); i++) {
+        auto tmpline = vtkSmartPointer<vtkLine>::New();
+        tmpline->GetPointIds()->SetId(0, surface.Elements[i][0]);
+        tmpline->GetPointIds()->SetId(1, surface.Elements[i][1]);
+        VTKpolygons->InsertNextCell(tmpline);
+        }
+        std::cout << "VTP num lines=" << surface.Elements.size() << std::endl;
+    }
+
+    VTKpolydata->SetPoints(VTKpoints);
+    if (D == 3) {
+        std::cout << "VTP SetPolys" << std::endl;
+        VTKpolydata->SetPolys(VTKpolygons);
+    } else if (D == 2) {
+        std::cout << "VTP SetLines" << std::endl;
+        VTKpolydata->SetLines(VTKpolygons);
+    }
+
+    auto writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName(filename.c_str());
+    writer->SetInputData(VTKpolydata);
+    // writer->SetDataModeToAscii();
+    writer->SetDataModeToBinary();
+    writer->Write();
+    }
+#endif
 
     namespace {
 
@@ -257,7 +324,13 @@ namespace lvlset {
         vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
       owriter->SetFileName(fileName.c_str());
       owriter->SetInputData(volumeMesh);
+      owriter->SetDataModeToAscii();
+      owriter->SetDataModeToBinary();
       owriter->Write();
+#if defined(BUILD_WASM)
+      std::cout << "fileready VTU: fileName" << std::endl;
+      wasm::vtswasm::FileReady(fileName);
+#endif         
     }
 
     template <class GridTraitsType, class LevelSetTraitsType, class DataType>
@@ -315,7 +388,7 @@ namespace lvlset {
 
         f.close();
 #if defined(BUILD_WASM)
-        wasm::writeVTP(s, filename + ".vtp");
+        writeVTP(s, filename + ".vtp");
         wasm::vtswasm::FileReady(filename + ".vtp");
         wasm::vtswasm::FileReady(filename);
 #endif        
@@ -1000,7 +1073,11 @@ namespace lvlset {
         unsigned long long uInt;
         std::ifstream tmp_fin(path);//temporary stream to read defined runtypes from
         if(!tmp_fin.is_open()) msg::print_error("Could not open the tmp file: " + path);
-        tmp_fin.seekg(fin.tellg() + (long)bytes_to_read);//set position to the defined indices for runtypes
+        // tmp_fin.seekg(fin.tellg() + (long)bytes_to_read);//set position to the defined indices for runtypes
+        tmp_fin.seekg(
+            (long)fin.tellg() +
+            (long)
+                bytes_to_read); // set position to the defined indices for runtypes        
         sum = 0;
         for(unsigned int y = 0; y < bytes_to_read; y++){
           fin.read((char *)&byte, 1);

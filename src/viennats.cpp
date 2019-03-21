@@ -703,7 +703,7 @@ int myrun() {
   std::stringstream ss;
   ss << exec_time;
   msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
-  vtswasm::SimulationReady(exec_time);
+  wasm::vtswasm::SimulationReady(exec_time);
 
   return 0;
 
@@ -744,7 +744,7 @@ int runfile(const std::string filename) {
   ss << exec_time;
   msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
 
-  vtswasm::SimulationReady(exec_time);
+  wasm::vtswasm::SimulationReady(exec_time);
   return 0;
 
 }
@@ -781,8 +781,8 @@ EMSCRIPTEN_BINDINGS(viennatswasm) {
     // emscripten::function("cbTestInt", &cbTestInt);
     // emscripten::function("cbTestString", &cbTestString);
 
-    emscripten::class_<vtswasm>("vtswasm")
-    .class_function("SetCallback", &vtswasm::SetCallback)
+    emscripten::class_<wasm::vtswasm>("vtswasm")
+    .class_function("SetCallback", &wasm::vtswasm::SetCallback)
     ;
 }
 #endif
