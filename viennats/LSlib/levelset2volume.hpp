@@ -12,10 +12,17 @@
 #include <vtkTableBasedClipDataSet.h>
 #include <vtkDataSetTriangleFilter.h>
 #include <vtkAppendFilter.h>
+#include <vtkAppendPolyData.h>
 #include <vtkProbeFilter.h>
+#include <vtkGeometryFilter.h>
 
 #include "vector.hpp"
 
+//#define DEBUGOUTPUT
+#ifdef DEBUGOUTPUT
+  #include <vtkXMLRectilinearGridWriter.h>
+  #include <vtkXMLUnstructuredGridWriter.h>
+#endif
 
 
 namespace lvlset{
@@ -135,9 +142,12 @@ namespace lvlset{
         }
 
         if(removeBottom){
+          // if we jump from one end of the domain to the other and are not already in the new run, we need to fix the sign of the run
           if(currentOpenIndex!=indices[openJumpDirection]){
-            LSValue = -LSValue;
             currentOpenIndex=indices[openJumpDirection];
+            if(indices>=it_l.end_indices()){
+              LSValue = -LSValue;
+            }
           }
         }
 
@@ -210,7 +220,9 @@ namespace lvlset{
   // explicitly. When all the cuts are made, material numbers are assigned and the tetra meshes written
   // to one single file
   template<bool removeBottom, class LevelSetsType>
-  void extract_volume(const LevelSetsType& LevelSets, vtkSmartPointer<vtkUnstructuredGrid>& volumeMesh){
+  void extract_volume(const LevelSetsType& LevelSets,
+      vtkSmartPointer<vtkUnstructuredGrid>& volumeMesh,
+      vtkSmartPointer<vtkPolyData>& hullMesh){
 
     typedef typename LevelSetsType::value_type::grid_type2 GridType;
     static const int D=GridType::dimensions;
@@ -243,8 +255,11 @@ namespace lvlset{
     clipper->InsideOutOn();
     clipper->Update();
 
-
     materialMeshes.push_back(clipper->GetOutput());
+
+    #ifdef DEBUGOUTPUT
+    unsigned counter=1;
+    #endif
 
     // now cut large volume mesh with all the smaller ones
     for(typename LevelSetsType::const_reverse_iterator it=++LevelSets.rbegin(); it!=LevelSets.rend(); ++it){
@@ -254,13 +269,35 @@ namespace lvlset{
 
       // create grid of next LS with slight offset and project into current mesh
       vtkSmartPointer<vtkRectilinearGrid> rgrid = vtkSmartPointer<vtkRectilinearGrid>::New();
-      rgrid = LS2RectiLinearGrid<removeBottom, 1>(*it, -1e-5);  // number of extra grid points outside and LSOffset
+      rgrid = LS2RectiLinearGrid<removeBottom, 1>(*it, -1e-5, totalMinimum, totalMaximum);  // number of extra grid points outside and LSOffset
+
+      #ifdef DEBUGOUTPUT
+      {
+        vtkSmartPointer<vtkXMLRectilinearGridWriter> gwriter =
+          vtkSmartPointer<vtkXMLRectilinearGridWriter>::New();
+        gwriter->SetFileName(("./grid_" + std::to_string(counter) + ".vtr").c_str());
+        gwriter->SetInputData(rgrid);
+        gwriter->Write();
+        std::cout << "Wrote grid " << counter << std::endl;
+      }
+      #endif
 
       // now transfer implicit values to mesh points
       vtkSmartPointer<vtkProbeFilter> probeFilter = vtkSmartPointer<vtkProbeFilter>::New();
       probeFilter->SetInputData(*(materialMeshes.rbegin()));  // last element
       probeFilter->SetSourceData(rgrid);
       probeFilter->Update();
+
+      #ifdef DEBUGOUTPUT
+      {
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter> gwriter =
+          vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
+        gwriter->SetFileName(("./probed_" + std::to_string(counter) + ".vtu").c_str());
+        gwriter->SetInputData(probeFilter->GetOutput());
+        gwriter->Write();
+          std::cout << "Wrote unstructured grid " << counter << std::endl;
+      }
+      #endif
 
       // now clip the mesh and save the clipped as the 1st layer and use the inverse for the next layer clipping
       // Use vtkTabelBasedClipDataSet to slice the grid
@@ -272,11 +309,18 @@ namespace lvlset{
 
       materialMeshes.rbegin()[0] = insideClipper->GetOutput();
       materialMeshes.push_back(insideClipper->GetClippedOutput());
+
+      #ifdef DEBUGOUTPUT
+          ++counter;
+      #endif
     }
 
     vtkSmartPointer<vtkAppendFilter> appendFilter =
       vtkSmartPointer<vtkAppendFilter>::New();
     appendFilter->MergePointsOn();
+
+    vtkSmartPointer<vtkAppendPolyData> hullAppendFilter =
+      vtkSmartPointer<vtkAppendPolyData>::New();
 
 
     for(unsigned i=0; i<materialMeshes.size(); ++i){
@@ -293,13 +337,22 @@ namespace lvlset{
       // delete all cell data, so it is not in ouput
       // TODO this includes signed distance information which could be conserved for debugging
       // also includes wheter a cell was vaild for cutting by the grid
-      vtkSmartPointer<vtkPointData> pointData = materialMeshes[i]->GetPointData();
+      vtkSmartPointer<vtkPointData> pointData = materialMeshes[materialMeshes.size()-1-i]->GetPointData();
       const int numberOfArrays = pointData->GetNumberOfArrays();
       for(int j=0; j<numberOfArrays; ++j){
         pointData->RemoveArray(0); // remove first array until none are left
       }
 
-      appendFilter->AddInputData(materialMeshes[i]);
+      // if hull mesh should be exported, create hull for each layer and put them together
+      if(hullMesh.GetPointer() != 0){
+        vtkSmartPointer<vtkGeometryFilter> geoFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+        geoFilter->SetInputData(materialMeshes[materialMeshes.size()-1-i]);
+        geoFilter->Update();
+        hullAppendFilter->AddInputData(geoFilter->GetOutput());
+      }
+
+
+      appendFilter->AddInputData(materialMeshes[materialMeshes.size()-1-i]);
     }
 
     appendFilter->Update();
@@ -311,7 +364,23 @@ namespace lvlset{
     triangleFilter->Update();
 
     volumeMesh = triangleFilter->GetOutput();
+
+    // Now make hull mesh if necessary
+    if(hullMesh.GetPointer() != 0){
+      hullAppendFilter->Update();
+      hullMesh = hullAppendFilter->GetOutput();
+    }
   }
+
+
+  // overload to be able to pass 0 initialised smart pointer for hull mesh
+  template<bool removeBottom, class LevelSetsType>
+  void extract_volume(const LevelSetsType& LevelSets,
+      vtkSmartPointer<vtkUnstructuredGrid>& volumeMesh){
+    vtkSmartPointer<vtkPolyData> dummyHull = vtkSmartPointer<vtkPolyData>::New();
+    extract_volume<removeBottom>(LevelSets, volumeMesh, dummyHull);
+  }
+
 }
 
 #endif
