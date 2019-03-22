@@ -181,8 +181,12 @@ ELSE(NOT BUILD_WASM)
   # 1gb = 1073741824, 1gb-1*64kb = 1073676288, 1gb-100*64kb = 1067188224
   # 256mb = 1073741824, 1gb-1*64kb = 1073676288, 1gb-100*64kb = 1067188224
   # further emscripten options: -s DEMANGLE_SUPPORT=1 -s ASSERTIONS=1 
+  # 265814016 ~= 256mb
+
+  # 2gb-10*64kb = 2*1024**3-10*256**2 = 2146828288
   # -s ALLOW_MEMORY_GROWTH=1 \
   # -s DISABLE_EXCEPTION_CATCHING=1 \
+  # more info on linker flags: /home/manstetten/ProgramsDev/hpcwasm/emsdk/emscripten/1.38.29/src/settings.js
 
   message("using WASM")
   set_target_properties(${viennaTS} PROPERTIES 
@@ -193,8 +197,9 @@ ELSE(NOT BUILD_WASM)
   --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
   --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
   -s WASM=1 \
+  -s ALLOW_MEMORY_GROWTH=1 \
   -s TOTAL_MEMORY=265814016 \
-  -s WASM_MEM_MAX=265814016 \
+  -s WASM_MEM_MAX=2146828288 \
   -s \"BINARYEN_METHOD='native-wasm'\" \
   -s \"BINARYEN_TRAP_MODE='allow'\"")  
 ENDIF(NOT BUILD_WASM) 
