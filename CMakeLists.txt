@@ -187,6 +187,8 @@ ELSE(NOT BUILD_WASM)
   # -s ALLOW_MEMORY_GROWTH=1 \
   # -s DISABLE_EXCEPTION_CATCHING=1 \
   # more info on linker flags: /home/manstetten/ProgramsDev/hpcwasm/emsdk/emscripten/1.38.29/src/settings.js
+  # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
+  # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
 
   message("using WASM")
   set_target_properties(${viennaTS} PROPERTIES 
@@ -194,8 +196,6 @@ ELSE(NOT BUILD_WASM)
   LINK_FLAGS " --bind -v \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   --preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets \
-  --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
-  --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s TOTAL_MEMORY=265814016 \
