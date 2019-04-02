@@ -189,17 +189,17 @@ ELSE(NOT BUILD_WASM)
   # more info on linker flags: /home/manstetten/ProgramsDev/hpcwasm/emsdk/emscripten/1.38.29/src/settings.js
   # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
   # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
+  # --preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets \
 
   message("using WASM")
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
   LINK_FLAGS " --bind -v \
   -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-  --preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets \
   -s WASM=1 \
-  -s ALLOW_MEMORY_GROWTH=1 \
+  -s ALLOW_MEMORY_GROWTH=0 \
   -s TOTAL_MEMORY=265814016 \
-  -s WASM_MEM_MAX=2146828288 \
+  -s WASM_MEM_MAX=265814016 \
   -s \"BINARYEN_METHOD='native-wasm'\" \
   -s \"BINARYEN_TRAP_MODE='allow'\"")  
 ENDIF(NOT BUILD_WASM) 
