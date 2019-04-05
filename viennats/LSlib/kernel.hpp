@@ -54,7 +54,7 @@ static const unsigned int lvlset_omp_max_num_threads=1000;
 namespace lvlset {
 
     double allocation_factor=1.2;
-
+    unsigned top_levelset_id=0;
     // types and constants
 
     enum sign_type {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
@@ -851,7 +851,7 @@ namespace lvlset {
 
         unsigned levelset_id;
 
-        static unsigned top_levelset_id;
+
 
 
 
@@ -1652,7 +1652,8 @@ namespace lvlset {
 
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::INACTIVE=std::numeric_limits<size_type>::max();
 
-    template<class GridTraitsType, class LevelSetTraitsType> unsigned levelset<GridTraitsType, LevelSetTraitsType>::top_levelset_id=0;
+// TODO global static 
+    // template<class GridTraitsType, class LevelSetTraitsType> unsigned levelset<GridTraitsType, LevelSetTraitsType>::top_levelset_id=0;
 
 
 

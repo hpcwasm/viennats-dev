@@ -44,7 +44,6 @@
 #include <vtkQuad.h>
 #include <vtkSmartPointer.h>
 #include <vtkTriangle.h>
-#include <vtkXMLPolyDataReader.h>
 #include <vtkXMLPolyDataWriter.h>
 #include "vtswasm.h"
 #endif

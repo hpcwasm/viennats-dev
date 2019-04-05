@@ -37,7 +37,11 @@ OPTION(VIENNATS_STATIC_BUILD "" OFF)
 # Default compile options
 #################
 # disable-new-dtags is necessary for ld > 2.27
-SET(CMAKE_CXX_FLAGS "-Wall -pedantic -fmax-errors=5  -Wl,--disable-new-dtags")
+IF(NOT BUILD_WASM)
+  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -fmax-errors=5  -Wl,--disable-new-dtags")
+ELSE(NOT BUILD_WASM)
+  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -fmax-errors=5")
+ENDIF(NOT BUILD_WASM) 
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 ")
 SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g")

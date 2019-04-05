@@ -27,8 +27,8 @@ License:         MIT (X11), see file LICENSE in the base directory
 #include <vtkDataArray.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkPolyData.h>
-#include <vtkXMLUnstructuredGridReader.h>
-#include <vtkXMLPolyDataReader.h>
+// #include <vtkXMLUnstructuredGridReader.h>
+// #include <vtkXMLPolyDataReader.h>
 
 #ifdef USE_HDF5
 #include "HDF.h"
@@ -604,55 +604,55 @@ namespace geometry {
       std::vector<double> shift//=std::vector<double>()
     ){
 
-      vtkSmartPointer<vtkXMLUnstructuredGridReader> greader = vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
-      greader->SetFileName(FileName.c_str());
-      greader->Update();
+      // vtkSmartPointer<vtkXMLUnstructuredGridReader> greader = vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
+      // greader->SetFileName(FileName.c_str());
+      // greader->Update();
 
-      vtkSmartPointer<vtkUnstructuredGrid> ugrid = vtkSmartPointer<vtkUnstructuredGrid>::New();
-      ugrid = greader->GetOutput();
+      // vtkSmartPointer<vtkUnstructuredGrid> ugrid = vtkSmartPointer<vtkUnstructuredGrid>::New();
+      // ugrid = greader->GetOutput();
 
-      // get all points
-      Nodes.resize(ugrid->GetNumberOfPoints());
-      for(unsigned i=0; i<Nodes.size(); ++i){
-        double p[3];
-        ugrid->GetPoint(i, p);
-        for(unsigned j=0; j<D; ++j){
-          Nodes[i][j]=p[InputTransformationDirections[j]];
-          if(shift.size()>j) Nodes[i][j]+=shift[j];//Assign desired shift
-          if(InputTransformationSigns[j]) Nodes[i][j]=-Nodes[i][j];//Assign sign transformation, if needed
-          Nodes[i][j]*=scale;//Scale the geometry according to parameters file
-        }
-      }
+      // // get all points
+      // Nodes.resize(ugrid->GetNumberOfPoints());
+      // for(unsigned i=0; i<Nodes.size(); ++i){
+      //   double p[3];
+      //   ugrid->GetPoint(i, p);
+      //   for(unsigned j=0; j<D; ++j){
+      //     Nodes[i][j]=p[InputTransformationDirections[j]];
+      //     if(shift.size()>j) Nodes[i][j]+=shift[j];//Assign desired shift
+      //     if(InputTransformationSigns[j]) Nodes[i][j]=-Nodes[i][j];//Assign sign transformation, if needed
+      //     Nodes[i][j]*=scale;//Scale the geometry according to parameters file
+      //   }
+      // }
 
-      // get all cells
-      Elements.resize(ugrid->GetNumberOfCells());
-      for(unsigned i=0; i<Elements.size(); ++i){
-        vtkIdList* pointList = vtkIdList::New();
-        ugrid->GetCellPoints(i, pointList);
-        lvlset::vec<unsigned int, D+1> elem;
+      // // get all cells
+      // Elements.resize(ugrid->GetNumberOfCells());
+      // for(unsigned i=0; i<Elements.size(); ++i){
+      //   vtkIdList* pointList = vtkIdList::New();
+      //   ugrid->GetCellPoints(i, pointList);
+      //   lvlset::vec<unsigned int, D+1> elem;
 
-        for(unsigned j=0; j<D+1; ++j){
-          elem[j]=pointList->GetId(j);
-        }
-        Elements[i] = elem;
-      }
+      //   for(unsigned j=0; j<D+1; ++j){
+      //     elem[j]=pointList->GetId(j);
+      //   }
+      //   Elements[i] = elem;
+      // }
 
-      // get materials
-      vtkSmartPointer<vtkCellData> cellData = vtkSmartPointer<vtkCellData>::New();
-      cellData = ugrid->GetCellData();
+      // // get materials
+      // vtkSmartPointer<vtkCellData> cellData = vtkSmartPointer<vtkCellData>::New();
+      // cellData = ugrid->GetCellData();
 
-      int arrayIndex;
-      vtkDataArray* matArray = cellData->GetArray("Material", arrayIndex);
-      Materials.reserve(Elements.size()); // must be the same number
-      if(arrayIndex>=0){  // if array exists
-        for(unsigned i=0; i<matArray->GetNumberOfTuples(); ++i){
-          Materials.push_back(matArray->GetTuple1(i));
-        }
-      }else{  // if no material specified, use the same for all elements
-        for(unsigned i=0; i<Elements.size(); ++i){
-          Materials.push_back(1);
-        }
-      }
+      // int arrayIndex;
+      // vtkDataArray* matArray = cellData->GetArray("Material", arrayIndex);
+      // Materials.reserve(Elements.size()); // must be the same number
+      // if(arrayIndex>=0){  // if array exists
+      //   for(unsigned i=0; i<matArray->GetNumberOfTuples(); ++i){
+      //     Materials.push_back(matArray->GetTuple1(i));
+      //   }
+      // }else{  // if no material specified, use the same for all elements
+      //   for(unsigned i=0; i<Elements.size(); ++i){
+      //     Materials.push_back(1);
+      //   }
+      // }
     }
 
 
@@ -984,78 +984,78 @@ namespace geometry {
       bool change_input_parity,
       std::vector<double> shift
     ) {
-      // Prepare transformation properties
-      while(InputTransformationDirections.size()<D) InputTransformationDirections.push_back(InputTransformationDirections.size());
-      while(InputTransformationSigns.size()<D) InputTransformationSigns.push_back(false);
+      // // Prepare transformation properties
+      // while(InputTransformationDirections.size()<D) InputTransformationDirections.push_back(InputTransformationDirections.size());
+      // while(InputTransformationSigns.size()<D) InputTransformationSigns.push_back(false);
 
-      if ((InputTransformationDirections[0]+1)%D!=InputTransformationDirections[1]) change_input_parity=!change_input_parity;
-      for (int i=0;i<D;++i) {
-        if (InputTransformationSigns[i]) change_input_parity=!change_input_parity;
-      }
+      // if ((InputTransformationDirections[0]+1)%D!=InputTransformationDirections[1]) change_input_parity=!change_input_parity;
+      // for (int i=0;i<D;++i) {
+      //   if (InputTransformationSigns[i]) change_input_parity=!change_input_parity;
+      // }
 
-      // READ FROM VTP FILE
-      vtkSmartPointer<vtkXMLPolyDataReader> pReader = vtkSmartPointer<vtkXMLPolyDataReader>::New();
-      pReader->SetFileName(FileName.c_str());
-      pReader->Update();
+      // // READ FROM VTP FILE
+      // vtkSmartPointer<vtkXMLPolyDataReader> pReader = vtkSmartPointer<vtkXMLPolyDataReader>::New();
+      // pReader->SetFileName(FileName.c_str());
+      // pReader->Update();
 
-      vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
-      polyData = pReader->GetOutput();
-
-
-      // read points(Nodes)
-      Nodes.resize(polyData->GetNumberOfPoints());
-      for (unsigned i=0;i<Nodes.size();i++) {
-        double coords[3];
-        polyData->GetPoint(i, coords);
-
-        for (int j=0;j<D;j++) {
-          Nodes[i][j]=coords[InputTransformationDirections[j]];
-          int shift_size=shift.size();
-          if (shift_size>j) Nodes[i][j]+=shift[j];//Assign desired shift
-          if (InputTransformationSigns[j]) Nodes[i][j]=-Nodes[i][j];//Assign sign transformation, if needed
-          Nodes[i][j]*=scale;//Scale the geometry according to parameters file
-        }
-      }
-
-      //read cells (Elements)
-      vtkCellArray* cellArray;
-      if(D==3){
-        Elements.reserve(polyData->GetNumberOfPolys());
-        cellArray = polyData->GetPolys();
-      }else{
-        Elements.reserve(polyData->GetNumberOfLines());
-        cellArray = polyData->GetLines();
-      }
-
-      cellArray->InitTraversal();
-      vtkIdList* pointList = vtkIdList::New();
-      while(cellArray->GetNextCell(pointList)){
-        lvlset::vec<unsigned int, D> elem;
-        for(unsigned j=0; j<D; ++j){
-          elem[j]=pointList->GetId(j);
-        }
-        Elements.push_back(elem);
-      }
-
-      // get materials
-      vtkSmartPointer<vtkCellData> cellData = vtkSmartPointer<vtkCellData>::New();
-      cellData = polyData->GetCellData();
-
-      int arrayIndex;
-      vtkDataArray* matArray = cellData->GetArray("Material", arrayIndex);
-      Materials.reserve(Elements.size()); // must be the same number
-      if(arrayIndex>=0){  // if array exists
-        for(unsigned i=0; i<matArray->GetNumberOfTuples(); ++i){
-          Materials.push_back(matArray->GetTuple1(i));
-        }
-      }else{  // if no material specified, use the same for all elements
-        for(unsigned i=0; i<Elements.size(); ++i){
-          Materials.push_back(1);
-        }
-      }
+      // vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
+      // polyData = pReader->GetOutput();
 
 
-      CalculateExtensions();
+      // // read points(Nodes)
+      // Nodes.resize(polyData->GetNumberOfPoints());
+      // for (unsigned i=0;i<Nodes.size();i++) {
+      //   double coords[3];
+      //   polyData->GetPoint(i, coords);
+
+      //   for (int j=0;j<D;j++) {
+      //     Nodes[i][j]=coords[InputTransformationDirections[j]];
+      //     int shift_size=shift.size();
+      //     if (shift_size>j) Nodes[i][j]+=shift[j];//Assign desired shift
+      //     if (InputTransformationSigns[j]) Nodes[i][j]=-Nodes[i][j];//Assign sign transformation, if needed
+      //     Nodes[i][j]*=scale;//Scale the geometry according to parameters file
+      //   }
+      // }
+
+      // //read cells (Elements)
+      // vtkCellArray* cellArray;
+      // if(D==3){
+      //   Elements.reserve(polyData->GetNumberOfPolys());
+      //   cellArray = polyData->GetPolys();
+      // }else{
+      //   Elements.reserve(polyData->GetNumberOfLines());
+      //   cellArray = polyData->GetLines();
+      // }
+
+      // cellArray->InitTraversal();
+      // vtkIdList* pointList = vtkIdList::New();
+      // while(cellArray->GetNextCell(pointList)){
+      //   lvlset::vec<unsigned int, D> elem;
+      //   for(unsigned j=0; j<D; ++j){
+      //     elem[j]=pointList->GetId(j);
+      //   }
+      //   Elements.push_back(elem);
+      // }
+
+      // // get materials
+      // vtkSmartPointer<vtkCellData> cellData = vtkSmartPointer<vtkCellData>::New();
+      // cellData = polyData->GetCellData();
+
+      // int arrayIndex;
+      // vtkDataArray* matArray = cellData->GetArray("Material", arrayIndex);
+      // Materials.reserve(Elements.size()); // must be the same number
+      // if(arrayIndex>=0){  // if array exists
+      //   for(unsigned i=0; i<matArray->GetNumberOfTuples(); ++i){
+      //     Materials.push_back(matArray->GetTuple1(i));
+      //   }
+      // }else{  // if no material specified, use the same for all elements
+      //   for(unsigned i=0; i<Elements.size(); ++i){
+      //     Materials.push_back(1);
+      //   }
+      // }
+
+
+      // CalculateExtensions();
     }
 
     void CalculateExtensions() {

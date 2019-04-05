@@ -749,6 +749,9 @@ int runfile(const std::string filename) {
   msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
 
   wasm::vtswasm::SimulationReady(exec_time);
+
+  lvlset::top_levelset_id=0;
+
   return 0;
 
 }
