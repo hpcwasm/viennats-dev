@@ -25,7 +25,7 @@ source $HPCWASM_BASE_DIR_EMSDK/emsdk_env.sh
 mkdir -p $VIENNATS_BASE_DIR/buildwasm
 cd $VIENNATS_BASE_DIR/buildwasm
 
-emcmake cmake -DBUILD_WASM=ON -DCMAKE_INSTALL_PREFIX=$VIENNATS_WEBAPP_DIR ..
+emcmake cmake -DBUILD_WASM=ON -DCMAKE_INSTALL_PREFIX=$VIENNATS_WEBAPP_DIR/src/assets/buildwasm/ ..
 ```
 
 ## 6. compile viennats (build)
