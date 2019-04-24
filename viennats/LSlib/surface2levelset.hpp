@@ -331,7 +331,9 @@ namespace lvlset {
                                     SignDistance=-SignDistance;
                                 }
 
-                                if (math::signbit(RealDistance)) SignDistance=-SignDistance;
+                                // if (math::signbit(RealDistance)) SignDistance=-SignDistance;
+                                if (RealDistance<0.0) SignDistance=-SignDistance;
+                
 
                                 RealDistance*=(1.-eps_distance2);
                                 if (RealDistance>1.) RealDistance=1.;
@@ -364,15 +366,26 @@ namespace lvlset {
             }
         }
 
+    //   for ( auto it=points2.begin(); it!=points2.end(); ++it){
+    //         std::cout << "points2:" << it->first << " : " << it->second << std::endl;
+        // }
+
+        // for (const auto& pnt : points2){
+        //     std::cout << "points2:" << pnt.first << " : " << pnt.second << std::endl;
+        // }
         l.insert_points(points2);    //initialize level set function
+
+        // l.print();
+
+
 
         if (report_import_errors) {
           std::string err= misc::test(l);     //check level set function
           if (err.size()) {                   //if inconsistent print out error message
             std::cout << "Initialization of level set function from triangulated surface failed!" << std::endl;
-            #ifdef VERBOSE
+            // #ifdef VERBOSE
             std::cout << err << std::endl;
-            #endif // VERBOSE
+            // #endif // VERBOSE
             write_explicit_levelset(l, "importError.vtp");
             std::cout << "Level set points have been written to importError.vtp" << std::endl;
             abort();

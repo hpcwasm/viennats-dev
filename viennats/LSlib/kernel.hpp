@@ -1194,7 +1194,9 @@ namespace lvlset {
         //##############################################
 
         static sign_type sign(value_type value) {                           //this function returns the sign
-            return (sign_type(math::signbit(value))?NEG_SIGN:POS_SIGN);     //of a given level set value "value"
+
+            // return (sign_type(math::signbit(value))?NEG_SIGN:POS_SIGN);     //of a given level set value "value"
+            return (sign_type(value<0.0)?NEG_SIGN:POS_SIGN);     //of a given level set value "value"            
         }
 
         sign_type sign(size_type pt_id) const {     //this function returns the sign of a grid point given by
@@ -1647,8 +1649,11 @@ namespace lvlset {
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_PT     =  std::numeric_limits<size_type>::max()-(lvlset_omp_max_num_threads+1);
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::UNDEF_PT   =  std::numeric_limits<size_type>::max()-(lvlset_omp_max_num_threads+2);
 
-    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::POS_VALUE=std::numeric_limits<value_type>::max();
-    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_VALUE=-std::numeric_limits<value_type>::max();
+    // template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::POS_VALUE=std::numeric_limits<value_type>::max();
+    // template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_VALUE=-std::numeric_limits<value_type>::max();
+    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::POS_VALUE=1e7;
+    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_VALUE=-1e7;
+
 
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::INACTIVE=std::numeric_limits<size_type>::max();
 
@@ -1673,8 +1678,17 @@ namespace lvlset {
         points_type tmp_segmentation;
 
         initialize(tmp_segmentation);
-
+            std::cout << "POS_PT "<<POS_PT<< std::endl;   
+            std::cout << "NEG_PT "<<NEG_PT<< std::endl;   
+            std::cout << "POS_VALUE "<<POS_VALUE<< std::endl;   
+            std::cout << "NEG_VALUE "<<NEG_VALUE<< std::endl;              
+        std::cout << "insert_points:"<< std::endl;
         if (point_defs.front().first!=Grid.min_point_index()) {
+            std::cout << "point_defs.front().first!=Grid.min_point_index(): (push_back_undefined): "<< std::endl;
+            std::cout << "point_defs.front().second "<<point_defs.front().second<< std::endl;
+            std::cout << "sign(point_defs.front().second) "<<sign(point_defs.front().second)<< std::endl;
+            std::cout << "(sign_type(sign(point_defs.front().second)) "<<sign_type(sign(point_defs.front().second))<< std::endl;        
+   
             push_back_undefined(0, Grid.min_point_index(),(sign_type(sign(point_defs.front().second))==POS_SIGN)?POS_PT:NEG_PT);     //TODO
         }
 
@@ -1688,9 +1702,11 @@ namespace lvlset {
         typename PointsType::const_iterator it_pt_defs=begin_pt_defs;
         while (it_pt_defs!=end_pt_defs) {
 
-            if (math::abs(it_pt_defs->second)>=std::numeric_limits<typename PointsType::value_type::second_type>::max()) {
+            if (math::abs(it_pt_defs->second)>=POS_VALUE) {
+                std::cout << "push_back_undefined at ("<<it_pt_defs->first <<") value= "<<((sign_type(sign(it_pt_defs->second))==POS_SIGN)?POS_PT:NEG_PT) << std::endl;   
                 push_back_undefined(0,it_pt_defs->first,(sign_type(sign(it_pt_defs->second))==POS_SIGN)?POS_PT:NEG_PT);
             } else {
+                std::cout << "push_back at ("<<it_pt_defs->first <<") value= "<<it_pt_defs->second << std::endl;
                 push_back(0,it_pt_defs->first, it_pt_defs->second);
             }
 
@@ -1725,7 +1741,7 @@ namespace lvlset {
                 for (int r=0;r<q;++r) tmp[r]=Grid.min_point_index(r);
 
                 if (tmp>=next_index) break;
-
+                std::cout << "push_back_undefined at ("<<tmp <<") value= "<<((signs[q]==POS_SIGN)?POS_PT:NEG_PT)<< std::endl;       
                 push_back_undefined(0,tmp,(signs[q]==POS_SIGN)?POS_PT:NEG_PT);
 
             }
@@ -2306,11 +2322,16 @@ namespace lvlset {
 
         int num_required_cycles=(1+end_width-start_width)/2;
 
+        print();
+
         for (int a=0; a< num_required_cycles; ++a) {
+
+                std::cout << "expand a=" << a << std::endl;
 
             const int num_layers=end_width+2*(1+a-num_required_cycles);
             const value_type limit = num_layers*value_type(0.5);
 
+                
             swap(old_lvlset);
 
             //double tmp;
@@ -2328,7 +2349,7 @@ namespace lvlset {
                     #ifdef _OPENMP
                     p=omp_get_thread_num();
                     #endif
-
+                   
 
                     sub_levelset_type & s=sub_levelsets[p];
 
@@ -2336,30 +2357,41 @@ namespace lvlset {
                     vec<index_type, D> end_v=(p!=static_cast<int>(segmentation.size()))?segmentation[p]:grid().increment_indices(grid().max_point_index());
 
                     for (const_iterator_neighbor it(old_lvlset, begin_v);it.start_indices()!=end_v;it.next()) {
+                        
+                        std::cout << "it.center().sign() = "<< it.center().sign()<< std::endl;
+                        std::cout << std::scientific <<  "it.center().value() ="<< it.center().value() << std::endl;
 
                         if (math::abs(it.center().value())<=total_limit) {
+                            std::cout << "math::abs(it.center().value())<=total_limit("<<total_limit << ") (push_back) " << it.start_indices() << "/ " << it.center().value() << std::endl;
                             s.push_back(it.start_indices(),it.center().value());
                         } else {
                             if (it.center().sign()==POS_SIGN) {
+                                std::cout << "it.center().sign() ("<< it.center().sign() << ")==POS_SIGN ("<< POS_SIGN<< ") " << std::endl;
                                 value_type distance=POS_VALUE;
                                 for (int i=0;i<2*D;i++) {
                                     //if (it.neighbor(i).sign()>0) //shfdhsfhdskjhgf assert(it.neighbor(i).value()!=0);
                                     distance=std::min(distance,it.neighbor(i).value()+value_type(1));
                                 }
                                 if (distance<=limit) {
+                                    std::cout << "distance("<<distance<<")<=limit("<<limit<<")  (push_back) " << it.start_indices() << "/ " << distance << std::endl;
                                     s.push_back(it.start_indices(),distance);
                                 } else {
+                                    std::cout << "!distance("<<distance<<")<=limit("<<limit<<")  (push_back_undefined)   " << it.start_indices() << "/ " << POS_PT << std::endl;
                                     s.push_back_undefined(it.start_indices(),POS_PT);
                                 }
                             } else {
+                                std::cout << "it.center().sign()!=POS_SIGN " << std::endl;
                                 value_type distance=NEG_VALUE;
                                 for (int i=0;i<2*D;i++) {
                                     //if (it.neighbor(i).sign()<0) //shfdhsfhdskjhgf assert(it.neighbor(i).value()!=0);
+                                   
                                     distance=std::max(distance,it.neighbor(i).value()-value_type(1));
                                 }
                                 if (distance>=-limit) {
+                                     std::cout << "distance("<<distance<<")>=-limit("<<limit<<")  (push_back) " << it.start_indices() << "/ " << distance << std::endl;
                                     s.push_back(it.start_indices(),distance);
                                 } else {
+                                    std::cout << "!distance("<<distance<<")>=-limit("<<limit<<") (push_back_undefined) " << it.start_indices() << "/ " << NEG_PT << std::endl;
                                     s.push_back_undefined(it.start_indices(),NEG_PT);
                                 }
                             }

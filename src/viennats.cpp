@@ -14,7 +14,7 @@
 
 //COMPILE OPTIONS#####################################
 #define TEST_MODE
-//#define VERBOSE
+// #define VERBOSE
 
 //Dimensions
 #define DIMENSION_3
