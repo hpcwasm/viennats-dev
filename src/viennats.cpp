@@ -290,7 +290,11 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
     if(p.surface_geometry){
       geometry::import_levelsets_from_surface<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
     } else {
-      geometry::import_levelsets_from_volume<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
+      if(p.geometry_files[0].find(".vtp") != std::string::npos){
+        geometry::import_levelsets_from_hull<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
+      }else{
+        geometry::import_levelsets_from_volume<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
+      }
     }
   }
 
@@ -703,7 +707,7 @@ int myrun() {
   std::stringstream ss;
   ss << exec_time;
   msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
-  vtswasm::SimulationReady(exec_time);
+  wasm::vtswasm::SimulationReady(exec_time);
 
   return 0;
 
@@ -744,7 +748,10 @@ int runfile(const std::string filename) {
   ss << exec_time;
   msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
 
-  vtswasm::SimulationReady(exec_time);
+  wasm::vtswasm::SimulationReady(exec_time);
+
+  lvlset::top_levelset_id=0;
+
   return 0;
 
 }
@@ -781,8 +788,8 @@ EMSCRIPTEN_BINDINGS(viennatswasm) {
     // emscripten::function("cbTestInt", &cbTestInt);
     // emscripten::function("cbTestString", &cbTestString);
 
-    emscripten::class_<vtswasm>("vtswasm")
-    .class_function("SetCallback", &vtswasm::SetCallback)
+    emscripten::class_<wasm::vtswasm>("vtswasm")
+    .class_function("SetCallback", &wasm::vtswasm::SetCallback)
     ;
 }
 #endif

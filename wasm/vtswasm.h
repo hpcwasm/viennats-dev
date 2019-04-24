@@ -14,18 +14,18 @@ public:
   // generall callback function passing a (json) string
   static emscripten::val callbackFunction;
   static void SetCallback(emscripten::val cb) {
-    vtswasm::callbackFunction = cb;
+    wasm::vtswasm::callbackFunction = cb;
   }
   static void executeJSCallback(std::string message) {
-    vtswasm::callbackFunction(message);
+    wasm::vtswasm::callbackFunction(message);
   }
   static void SimulationReady(double runtime) {
     json j = {{"simready", true}, {"runtime", runtime}};
-    vtswasm::executeJSCallback(j.dump(4));
+    wasm::vtswasm::executeJSCallback(j.dump(4));
   }
   static void FileReady(std::string filename) {
     json j = {{"fileready", true}, {"filename", filename}};
-    vtswasm::executeJSCallback(j.dump(4));
+    wasm::vtswasm::executeJSCallback(j.dump(4));
   }
 };
 

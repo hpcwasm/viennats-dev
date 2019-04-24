@@ -1,64 +1,38 @@
-ViennaTS
---------------------------
+# how to build the viennats webassembly fork
 
-Developer repository for ViennaTS, a C++, OpenMP-parallelized Topography simulator.
-Releases are tagged on the master branch and available [in the releases section](https://github.com/viennats/viennats-dev/releases).
+## 1. get & build LLVM_WASM_BACKEND
+->
+## 2. get & configure emscripten
+->
+## 3. build boost for wasm
+->
+## 4. build vtk for wasm
+->
+## 5. compile viennats webassembly
 
-For more information and help to getting started, visit [viennats.github.io](https://viennats.github.io/).
+```bash
+export VIENNATS_BASE_DIR=/home/manstetten/github_hpcwasm/viennats-dev
+export VIENNATS_WEBAPP_DIR=/home/manstetten/github_hpcwasm/viennats-webapp
 
-System requirements
---------------------------
+# for emscripten
+export HPCWASM_BASE_DIR=/home/manstetten/ProgramsDev/hpcwasm
+export HPCWASM_BASE_DIR_EMSDK=$HPCWASM_BASE_DIR/emsdk
+export EM_CONFIG=$HPCWASM_BASE_DIR_EMSDK/.emscripten
+source $HPCWASM_BASE_DIR_EMSDK/emsdk_env.sh
+```
 
-* C++ compiler
-* OpenMP
-* Boost C++ Libraries
-* HDF5 (optional - required for TDR file support)
+```bash
+mkdir -p $VIENNATS_BASE_DIR/buildwasm
+cd $VIENNATS_BASE_DIR/buildwasm
 
-Currently supported operating systems
---------------------------
-* GNU/Linux (32/64Bit)
+emcmake cmake -DBUILD_WASM=ON -DCMAKE_INSTALL_PREFIX=$VIENNATS_WEBAPP_DIR ..
+```
 
-Building instructions
---------------------------
+## 6. compile viennats (build)
+```bash
+mkdir -p $VIENNATS_BASE_DIR/build
+cd $VIENNATS_BASE_DIR/build
 
-To build ViennaTS, clone the repository and issue the following suggested commands:
+cmake -DBUILD_WASM=OFF ..
 
-<pre>
-$> cd viennats-dev    # the checked-out GIT folder
-$> mkdir build        # the build folder
-</pre>
-
-Configure the build, default build type is the 'optimized/release' mode:
-<pre>
-$> cd build/
-$> cmake ..
-</pre>
-Watch for Warning/Error messages during the configuration stage.
-
-Now build the 'viennats' simulation executable
-<pre>
-$> make
-</pre>
-
-CMake Options
---------------------------
-
-<pre>
-CMAKE_BUILD_TYPE   = Debug, (Release) # Turn off/on optimizations (default: Release, i.e., optimized mode)
-</pre>
-
-Authors and Contact
-------------------------
-
-Current contributors: Lado Filipovic, Paul Manstetten, Xaver Klemenschits and Josef Weinbub
-
-Contact us via: viennats@iue.tuwien.ac.at
-
-Founder and initial developer was Otmar Ertl; not active anymore.
-
-ViennaTS was developed under the aegis of the 'Institute for Microelectronics' at the 'TU Wien'.
-http://www.iue.tuwien.ac.at/
-
-License
---------------------------
-See file LICENSE in the base directory.
+```

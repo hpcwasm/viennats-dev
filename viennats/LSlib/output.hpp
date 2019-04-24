@@ -17,7 +17,15 @@
 #include <vector>
 #include <fstream>
 #include <cstdint>
+
 #include <vtkXMLUnstructuredGridWriter.h>
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkPolyData.h>
+#include <vtkPoints.h>
+#include <vtkFloatArray.h>
+#include <vtkCellArray.h>
+#include <vtkPointData.h>
+
 #include "kernel.hpp"
 #include "levelset2surface.hpp"
 #include "levelset2volume.hpp"
@@ -26,8 +34,18 @@
 
 
 #if defined(BUILD_WASM)
+#include <vtkCellArray.h>
+#include <vtkCellData.h>
+#include <vtkDoubleArray.h>
+#include <vtkLine.h>
+#include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkQuad.h>
+#include <vtkSmartPointer.h>
+#include <vtkTriangle.h>
+#include <vtkXMLPolyDataWriter.h>
 #include "vtswasm.h"
-#include "wasmvtk.h"
 #endif
 
 //Options for levelset output
@@ -51,6 +69,7 @@
 #define  INT56_MIN -36028797018963968LL //  lowest  value of 3 signed   bytes -2^55
 
 namespace lvlset {
+
 
     namespace {
 
@@ -103,8 +122,63 @@ namespace lvlset {
       };
     }
 
-    template<typename D>
-    using OutputSurface = Surface<D>;    
+#if defined(BUILD_WASM)
+    template <int D>
+    void writeVTP(const Surface<D> &surface, const std::string &filename) {
+
+    auto VTKpolygons = vtkSmartPointer<vtkCellArray>::New();
+    auto VTKpolydata = vtkSmartPointer<vtkPolyData>::New();
+    auto VTKpoints = vtkSmartPointer<vtkPoints>::New();
+    // VTKpoints->SetDataTypeToDouble();
+
+    std::cout << "VTP D=" << D << std::endl;
+    // points
+    for (unsigned int i = 0; i < surface.Nodes.size(); i++) {
+        const double x = surface.Nodes[i][0];
+        const double y = surface.Nodes[i][1];
+        const double z = D == 3 ? surface.Nodes[i][2] : 0.0;
+        double xyz[3] = {x, y, z};
+        VTKpoints->InsertNextPoint(xyz);
+    }
+    std::cout << "VTP num points=" << surface.Nodes.size() << std::endl;
+
+    if (D == 3) { // cells == triangles
+        for (unsigned int i = 0; i < surface.Elements.size(); i++) {
+        auto tmptriangle = vtkSmartPointer<vtkTriangle>::New();
+        tmptriangle->GetPointIds()->SetId(0, surface.Elements[i][0]);
+        tmptriangle->GetPointIds()->SetId(1, surface.Elements[i][1]);
+        tmptriangle->GetPointIds()->SetId(2, surface.Elements[i][2]);
+        VTKpolygons->InsertNextCell(tmptriangle);
+        }
+        std::cout << "VTP num triangles=" << surface.Elements.size() << std::endl;
+
+    } else if (D == 2) { // cells == lines
+        for (unsigned int i = 0; i < surface.Elements.size(); i++) {
+        auto tmpline = vtkSmartPointer<vtkLine>::New();
+        tmpline->GetPointIds()->SetId(0, surface.Elements[i][0]);
+        tmpline->GetPointIds()->SetId(1, surface.Elements[i][1]);
+        VTKpolygons->InsertNextCell(tmpline);
+        }
+        std::cout << "VTP num lines=" << surface.Elements.size() << std::endl;
+    }
+
+    VTKpolydata->SetPoints(VTKpoints);
+    if (D == 3) {
+        std::cout << "VTP SetPolys" << std::endl;
+        VTKpolydata->SetPolys(VTKpolygons);
+    } else if (D == 2) {
+        std::cout << "VTP SetLines" << std::endl;
+        VTKpolydata->SetLines(VTKpolygons);
+    }
+
+    auto writer = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName(filename.c_str());
+    writer->SetInputData(VTKpolydata);
+    // writer->SetDataModeToAscii();
+    writer->SetDataModeToBinary();
+    writer->Write();
+    }
+#endif
 
     namespace {
 
@@ -112,6 +186,11 @@ namespace lvlset {
         public:
             int number_of_series() const {
                 return 0;
+            }
+
+            template <class PT_ID_TYPE>
+            double get_series_data_double(PT_ID_TYPE active_pt_id, int series) const {
+                return double();
             }
 
             template <class PT_ID_TYPE>
@@ -233,22 +312,169 @@ namespace lvlset {
         write_explicit_surface_opendx(l, filename, DefaultDataType(), eps);
     }
 
-    template <class LevelSetsType>
-    void write_explicit_volume_vtk(const LevelSetsType& LevelSets, const std::string& fileName, double eps=0.) {
-      write_explicit_volume_vtk(LevelSets, fileName, DefaultDataType(), eps);
+    template <class LevelSetsType, class CounterType, class ParameterType>
+    void write_explicit_volume_vtk(const LevelSetsType& LevelSets, const CounterType counter, ParameterType& p, double eps=0.) {
+      write_explicit_volume_vtk(LevelSets, counter, p, DefaultDataType(), eps);
     }
 
-    template <class LevelSetsType, class DataType>
-    void write_explicit_volume_vtk(const LevelSetsType& LevelSets, const std::string& fileName, const DataType& Data, double eps=0.) {
+    template <class LevelSetsType, class CounterType, class ParameterType, class DataType>
+    void write_explicit_volume_vtk(const LevelSetsType& LevelSets, const CounterType counter, ParameterType& p, const DataType& Data, double eps=0.) {
+      static const int D=LevelSetsType::value_type::grid_type2::dimensions;
 
-      vtkSmartPointer<vtkUnstructuredGrid> volumeMesh = vtkSmartPointer<vtkUnstructuredGrid>::New();
-      extract_volume(LevelSets, volumeMesh);
+      vtkSmartPointer<vtkUnstructuredGrid> volumeMesh;
+      vtkSmartPointer<vtkPolyData> hullMesh;
 
-      vtkSmartPointer<vtkXMLUnstructuredGridWriter> owriter =
-        vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
-      owriter->SetFileName(fileName.c_str());
-      owriter->SetInputData(volumeMesh);
-      owriter->Write();
+      // check if any output should be done. if none, we do not need to extract the volume
+      if(!(p.print_volume_tetra || p.print_volume_hull)) return;
+
+      // if volumeMesh or hullMesh are not initialised, they will not be created in extract_volume
+      if(p.print_volume_tetra) volumeMesh = vtkSmartPointer<vtkUnstructuredGrid>::New();
+      if(p.print_volume_hull) hullMesh = vtkSmartPointer<vtkPolyData>::New();
+
+      // depending on the open boundary, volume output needs to be treated differently if the bottom is removed
+      if(p.remove_bottom &&
+       (p.open_boundary<(D-1))){
+        extract_volume<true>(LevelSets, volumeMesh, hullMesh);
+      }else{
+        extract_volume<false>(LevelSets, volumeMesh, hullMesh);
+      }
+
+      if(p.print_volume_tetra){
+        std::ostringstream oss;
+        oss << p.output_path << "Volume_" << counter << ".vtu";
+
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter> owriter =
+          vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
+        owriter->SetFileName(oss.str().c_str());
+        owriter->SetInputData(volumeMesh);
+        owriter->SetDataModeToBinary();
+        owriter->Write();
+#if defined(BUILD_WASM)
+      std::cout << "fileready VTU:" << oss.str() << std::endl;
+      wasm::vtswasm::FileReady(oss.str());
+#endif         
+      }
+
+
+      if(p.print_volume_hull){
+        std::ostringstream oss;
+        oss << p.output_path << "Hull_" << counter << ".vtp";
+
+        vtkSmartPointer<vtkXMLPolyDataWriter> pwriter = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+        pwriter->SetFileName(oss.str().c_str());
+        pwriter->SetInputData(hullMesh);
+        pwriter->SetDataModeToBinary();
+        pwriter->Write();
+#if defined(BUILD_WASM)
+      std::cout << "fileready VTP:" << oss.str() << std::endl;
+      wasm::vtswasm::FileReady(oss.str());
+#endif         
+      }
+
+    }
+
+    template <class GridTraitsType, class LevelSetTraitsType>
+    void write_explicit_levelset(const levelset<GridTraitsType, LevelSetTraitsType>& l, const std::string& filename){
+      const int D=GridTraitsType::dimensions;
+
+      vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
+      vtkSmartPointer<vtkPoints> polyPoints = vtkSmartPointer<vtkPoints>::New();
+      vtkSmartPointer<vtkCellArray> polyCells = vtkSmartPointer<vtkCellArray>::New();
+      vtkSmartPointer<vtkFloatArray> polyValues = vtkSmartPointer<vtkFloatArray>::New();
+
+      polyValues->SetNumberOfComponents(1);
+      polyValues->SetName("LSValues");
+
+      // start iterator over LS
+      typename levelset<GridTraitsType, LevelSetTraitsType>::const_iterator_runs it_l(l);
+      double gridDelta = l.grid().grid_delta();
+
+      while(!it_l.is_finished()){
+        if(!it_l.is_active()){
+          it_l.next();
+          continue;
+        }
+        double p[3];
+        for(unsigned i=0; i<D; ++i) p[i] = gridDelta*it_l.start_indices(i);
+        vtkIdType pointId = polyPoints->InsertNextPoint(p);
+        polyCells->InsertNextCell(1, &pointId); // insert vertex for visualisation
+        polyValues->InsertNextValue(it_l.value());
+        it_l.next();
+      }
+
+      polyData->SetPoints(polyPoints);
+      polyData->SetVerts(polyCells);
+      polyData->GetPointData()->SetScalars(polyValues);
+
+      vtkSmartPointer<vtkXMLPolyDataWriter> pWriter = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+      pWriter->SetFileName(filename.c_str());
+      pWriter->SetInputData(polyData);
+      pWriter->Write();
+#if defined(BUILD_WASM)
+      std::cout << "fileready VTP:" << filename << std::endl;
+      wasm::vtswasm::FileReady(filename);
+#endif             
+    }
+
+    template <class GridTraitsType, class LevelSetTraitsType, class DataType>
+    void write_explicit_surface_vtp(const levelset<GridTraitsType, LevelSetTraitsType>& l, const std::string& filename, const DataType& Data, typename LevelSetTraitsType::value_type eps=0.) {
+
+      const int D=GridTraitsType::dimensions;
+      Surface<D> s;
+      typename GetActivePointType<typename LevelSetTraitsType::size_type, DataType>::result ActivePointList;
+
+      extract(l, s, eps, ActivePointList);
+
+      // fill pointlist with points from geometry
+      vtkSmartPointer<vtkPoints> polyPoints = vtkSmartPointer<vtkPoints>::New();
+      for (unsigned int i=0;i<s.Nodes.size();i++) {
+          polyPoints->InsertNextPoint(s.Nodes[i][0], s.Nodes[i][1], (D==2)?0:s.Nodes[i][2]);
+      }
+
+      vtkSmartPointer<vtkCellArray> polyCells = vtkSmartPointer<vtkCellArray>::New();
+      // fill cellarray
+      for(unsigned int i=0;i<s.Elements.size();i++) {
+          polyCells->InsertNextCell(D);
+          for (int j=0;j<D;j++){
+            polyCells->InsertCellPoint(s.Elements[i][j]);
+          }
+      }
+
+      vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
+      polyData->SetPoints(polyPoints);
+      if(D==3){
+        polyData->SetPolys(polyCells);
+      }else{
+        polyData->SetLines(polyCells);
+      }
+
+      // for each data series create point data
+      for (int k=0;k<Data.number_of_series();++k) {
+        if (Data.get_series_output(k)) {
+          vtkSmartPointer<vtkFloatArray> pointData = vtkSmartPointer<vtkFloatArray>::New();
+          pointData->SetNumberOfComponents(1);
+          pointData->SetName(Data.get_series_label(k).c_str());
+          for (unsigned int i=0;i<s.Nodes.size();i++) {
+              pointData->InsertNextValue(Data.get_series_data_double(ActivePointList[i],k));
+          }
+          polyData->GetPointData()->AddArray(pointData);
+        }
+      }
+
+      vtkSmartPointer<vtkXMLPolyDataWriter> pwriter = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+      pwriter->SetFileName(filename.c_str());
+      pwriter->SetInputData(polyData);
+      pwriter->Write();
+#if defined(BUILD_WASM)
+      std::cout << "fileready VTP:" << filename << std::endl;
+      wasm::vtswasm::FileReady(filename);
+#endif          
+    }
+
+
+    template <class GridTraitsType, class LevelSetTraitsType>
+    void write_explicit_surface_vtp(const levelset<GridTraitsType, LevelSetTraitsType>& l, const std::string& filename, typename LevelSetTraitsType::value_type eps=0.) {
+      write_explicit_surface_vtp(l, filename, DefaultDataType(), eps);
     }
 
     template <class GridTraitsType, class LevelSetTraitsType, class DataType>
@@ -306,7 +532,7 @@ namespace lvlset {
 
         f.close();
 #if defined(BUILD_WASM)
-        wasm::writeVTP(s, filename + ".vtp");
+        writeVTP(s, filename + ".vtp");
         wasm::vtswasm::FileReady(filename + ".vtp");
         wasm::vtswasm::FileReady(filename);
 #endif        
@@ -991,7 +1217,11 @@ namespace lvlset {
         unsigned long long uInt;
         std::ifstream tmp_fin(path);//temporary stream to read defined runtypes from
         if(!tmp_fin.is_open()) msg::print_error("Could not open the tmp file: " + path);
-        tmp_fin.seekg(fin.tellg() + (long)bytes_to_read);//set position to the defined indices for runtypes
+        // tmp_fin.seekg(fin.tellg() + (long)bytes_to_read);//set position to the defined indices for runtypes
+        tmp_fin.seekg(
+            (long)fin.tellg() +
+            (long)
+                bytes_to_read); // set position to the defined indices for runtypes        
         sum = 0;
         for(unsigned int y = 0; y < bytes_to_read; y++){
           fin.read((char *)&byte, 1);
@@ -1106,6 +1336,7 @@ namespace lvlset {
       ls.finalize(2);
       //ls.prune() is called before writing the levelset file, therefore we only need to set up segmentation.
       ls.segment();
+      ls.set_levelset_id();
     }
 
 } //NAMESPACE LVLSET END

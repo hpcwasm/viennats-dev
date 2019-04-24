@@ -10,6 +10,7 @@
 
 #include <boost/spirit/include/classic.hpp>
 #include "../message.h"
+#include "../parser_actors.h"
 #include <string>
 
 namespace model {
@@ -47,7 +48,7 @@ namespace model {
             using namespace boost::spirit::classic;
             using namespace parser_actors;
 
-            remove=true;
+            remove=false;
             surf=false;
             ignore_other_mat = false;
 

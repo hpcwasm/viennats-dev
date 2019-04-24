@@ -43,6 +43,7 @@ namespace proc {
 
       for (int i=0;i<num_layers;++i) {
             LS.push_back(LS.back());
+            LS.back().set_levelset_id();
         }
 
       for (int i=0;i>num_layers;--i) {
@@ -383,6 +384,42 @@ namespace proc {
                 return (1+ModelType::CoverageStorageSize+ModelType::RatesStorageSize+1);
             }
 
+            template<class PT_ID_TYPE>
+            double get_series_data_double(PT_ID_TYPE active_pt_id, int series) const {
+              if (series==0) {
+                double v=0.;
+                unsigned int mat=0;
+                bool connected=true;
+                bool visible=true;
+
+                if (Materials.size()>0) mat= Materials[active_pt_id];
+                if (Connectivities.size()>0) connected=Connectivities[active_pt_id];
+                if (Visibilities.size()>0) visible=Visibilities[active_pt_id];
+
+                Model.CalculateVelocity(
+                  v,
+                  calc::Make3DVector<Dimensions>(NormalVector+active_pt_id*Dimensions),
+                  Coverages+active_pt_id*Model.CoverageStorageSize,
+                  Rates+active_pt_id*Model.RatesStorageSize,
+                  mat,
+                  connected,
+                  visible
+                );
+
+                return v;
+              } else if (series<=ModelType::CoverageStorageSize) {
+                return Coverages[active_pt_id*ModelType::CoverageStorageSize+series-1];
+
+              } else if (series<=ModelType::CoverageStorageSize+ModelType::RatesStorageSize) {
+                return Rates[active_pt_id*ModelType::RatesStorageSize+series-ModelType::CoverageStorageSize-1];
+              } else {
+                unsigned int mat=0;
+                if (Materials.size()>0) mat= Materials[active_pt_id];
+                return mat;
+              }
+              return 0.;
+            }
+
             template <class PT_ID_TYPE>
             std::string get_series_data(PT_ID_TYPE active_pt_id, int series) const {
 
@@ -490,6 +527,7 @@ namespace proc {
         }
 
       if (!Model.fill_up()) LevelSets.pop_back();
+      else LevelSets.back().set_levelset_id(); // we introduced new material, so it needs an ID
 
       //TODO output and time
 
@@ -520,6 +558,14 @@ namespace proc {
         } else {
             mask_geometry.Read(Model.file_name(),Parameter.input_scale,Parameter.input_transformation, Parameter.input_transformation_signs,
             Parameter.change_input_parity, Parameter.material_mapping, Parameter.input_shift, Parameter.ignore_materials);
+        }
+
+        // manually set min and max to match original simulation
+        for(unsigned i=0; i<D; ++i){
+          if(LevelSets.back().grid().boundary_conditions(i) != lvlset::INFINITE_BOUNDARY){
+            mask_geometry.Min[i] = LevelSets.back().grid().min_grid_index(i)*Parameter.grid_delta;
+            mask_geometry.Max[i] = LevelSets.back().grid().max_grid_index(i)*Parameter.grid_delta;
+          }
         }
 
         //      mask_geometry.Read(Model.file_name(), Parameter.input_scale, Parameter.input_transformation, Parameter.input_transformation_signs, Parameter.change_input_parity, Parameter.material_mapping, Parameter.input_shift, Parameter.ignore_materials);
@@ -578,6 +624,7 @@ namespace proc {
 
       // now put the mask as the lowest levelset
       LevelSets.push_front(mask_ls);
+      LevelSets.front().set_levelset_id();
 
 
         //TODO output and time
@@ -592,8 +639,6 @@ namespace proc {
                 const ProcessParameterType& ProcessParameter,
                 OutputInfoType & output_info
         ) {
-
-      if (Model.level()==0) return;
 
         typedef typename LevelSetsType::value_type LevelSetType;
         const int D=LevelSetType::dimensions;
@@ -667,34 +712,42 @@ namespace proc {
             while (ls_it!=LevelSets.end()) {
                 ls_it->min(*boolop_ls);
                 ls_it->prune();
-        ls_it->segment();
+                ls_it->segment();
                 ++ls_it;
             }
 
       if (Model.invert() && Model.levelset()>=0) boolop_ls->invert();    //Invert again so that the original levelset is not changed
-        } else {                        //Model.level()<0
+    } else if(Model.level()<0){
 
-            if (Model.invert()) boolop_ls->invert();
+      if (Model.invert()) boolop_ls->invert();
 
-            int j=0;
-            typename LevelSetsType::iterator ls_it_old  =   LevelSets.begin();
-            typename LevelSetsType::iterator ls_it      =   LevelSets.begin();
+      int j=0;
+      typename LevelSetsType::iterator ls_it_old  =   LevelSets.begin();
+      typename LevelSetsType::iterator ls_it      =   LevelSets.begin();
 
-            for (;j<static_cast<int>(LevelSets.size())+Model.level();++j) {
-                ls_it_old=ls_it;
-                ++ls_it;
-            }
+      for (;j<static_cast<int>(LevelSets.size())+Model.level();++j) {
+        ls_it_old=ls_it;
+        ++ls_it;
+      }
       if(!Model.wrap_surface()) j=0;
 
-            while (ls_it!=LevelSets.end()) {
-                ls_it->max(*boolop_ls);
-                if (j>0) ls_it->min(*ls_it_old);
-                ls_it->prune();
+      while (ls_it!=LevelSets.end()) {
+        ls_it->max(*boolop_ls);
+        if (j>0) ls_it->min(*ls_it_old);
+        ls_it->prune();
         ls_it->segment();
-                ++ls_it;
-            }
+        ++ls_it;
+      }
       if (Model.invert() && Model.levelset()>=0) boolop_ls->invert();    //Invert again so that the original levelset is not changed
-        }
+    }
+
+    // remove levelset used for booling if specified
+    if(Model.levelset()>=0 && Model.remove_levelset()){
+      auto it=LevelSets.begin();
+      for(int i=0; i<Model.levelset(); ++i) ++it;
+      LevelSets.erase(it);
+    }
+
     //Write one output if there is any output time or there is final output
     if(!(!ProcessParameter.output_times.empty() || ProcessParameter.final_output)) return;
 
@@ -1675,6 +1728,18 @@ namespace proc {
                             write_explicit_surface_vtk(*it,oss.str(), Data);
                         }
                     }
+                    if(Parameter.print_vtp){
+                      std::ostringstream oss;
+                      oss << Parameter.output_path<< output_info.file_name <<"_" << i << "_" << output_info.output_counter << ".vtp";
+#ifdef VERBOSE
+                      msg::print_message("print vtp");
+#endif
+                      if (i!=LevelSets.size()-1) {
+                          write_explicit_surface_vtp(*it,oss.str());
+                      } else {
+                          write_explicit_surface_vtp(*it,oss.str(), Data);
+                      }
+                    }
                     if (Parameter.print_lvst) {
                         std::ostringstream oss;
                         oss << Parameter.output_path<< output_info.file_name <<"_" << i << "_" << output_info.output_counter << ".lvst";
@@ -1700,12 +1765,7 @@ namespace proc {
             msg::print_start(oss.str());
           }
 
-          {
-            std::ostringstream oss;
-            oss << Parameter.output_path<< "Volume_" << output_info.output_counter << ".vtu";
-
-            lvlset::write_explicit_volume_vtk(LevelSets, oss.str());
-          }
+          lvlset::write_explicit_volume_vtk(LevelSets, output_info.output_counter, Parameter);
 
           output_info.output_counter++;
           msg::print_done();
