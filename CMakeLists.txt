@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 3.4)
 set(BUILD_WASM true CACHE BOOL "build webassembly")
 
 IF(BUILD_WASM)
-  set(WASM_BOOST_LIB_DIR "/home/manstetten/ProgramsDev/hpcwasm/boost/lib/emscripten")
-  set(WASM_BOOST_INCLUDE_DIR "/home/manstetten/ProgramsDev/hpcwasm/boost")
-  set(WASM_VTK_CMAKE_DIR "/home/manstetten/ProgramsDev/hpcwasm/vtk/install/lib/cmake/vtk-8.1")  
+  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_BASE_DIR}/boost/lib/emscripten")
+  set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_BASE_DIR}/boost")
+  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_BASE_DIR}/vtk/install/lib/cmake/vtk-8.1")  
   add_definitions(-DBUILD_WASM)
 ENDIF(BUILD_WASM) 
 
@@ -217,3 +217,10 @@ IF(VIENNATS_STATIC_BUILD)
 ELSE()
   TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES})
 ENDIF(VIENNATS_STATIC_BUILD)
+
+
+## install targets
+IF(BUILD_WASM)
+  INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.js" DESTINATION "${CMAKE_INSTALL_PREFIX}")
+  INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.wasm" DESTINATION "${CMAKE_INSTALL_PREFIX}") 
+ENDIF(BUILD_WASM)

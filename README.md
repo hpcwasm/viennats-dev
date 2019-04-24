@@ -1,10 +1,10 @@
 # how to build the viennats webassembly fork
 
 ## 1. get & build LLVM_WASM_BACKEND
--> 
+->
 ## 2. get & configure emscripten
 ->
-## 3. build boost for wasm 
+## 3. build boost for wasm
 ->
 ## 4. build vtk for wasm
 ->
@@ -12,6 +12,7 @@
 
 ```bash
 export VIENNATS_BASE_DIR=/home/manstetten/github_hpcwasm/viennats-dev
+export VIENNATS_WEBAPP_DIR=/home/manstetten/github_hpcwasm/viennats-webapp
 
 # for emscripten
 export HPCWASM_BASE_DIR=/home/manstetten/ProgramsDev/hpcwasm
@@ -24,7 +25,7 @@ source $HPCWASM_BASE_DIR_EMSDK/emsdk_env.sh
 mkdir -p $VIENNATS_BASE_DIR/buildwasm
 cd $VIENNATS_BASE_DIR/buildwasm
 
-emcmake cmake -DBUILD_WASM=ON ..
+emcmake cmake -DBUILD_WASM=ON -DCMAKE_INSTALL_PREFIX=$VIENNATS_WEBAPP_DIR ..
 ```
 
 ## 6. compile viennats (build)
