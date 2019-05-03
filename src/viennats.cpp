@@ -14,7 +14,7 @@
 
 //COMPILE OPTIONS#####################################
 #define TEST_MODE
-//#define VERBOSE
+#define VERBOSE
 
 //Dimensions
 #define DIMENSION_3
@@ -335,6 +335,15 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
             std::vector<double> CoveragesPEALD_TiN(12*LevelSets.back().num_active_pts(),0.);
             for (unsigned int i=0;i<CoveragesPEALD_TiN.size();i++) CoveragesPEALD_TiN[i]=(i%12==10)?1.:0.;
 #endif
+
+
+  std::cout << "segment_pt:" << LevelSetsType::value_type::SEGMENT_PT <<std::endl;
+  std::cout << "pos_pt:" << LevelSetsType::value_type::POS_PT <<std::endl;
+  std::cout << "neg_pt:" << LevelSetsType::value_type::NEG_PT <<std::endl;
+  std::cout << "undef_pt:" << LevelSetsType::value_type::UNDEF_PT <<std::endl;
+  std::cout << "pos_value:" << LevelSetsType::value_type::POS_VALUE <<std::endl;
+  std::cout << "neg_value:" << LevelSetsType::value_type::NEG_VALUE <<std::endl;
+  std::cout << "inactive:" << LevelSetsType::value_type::INACTIVE <<std::endl;
 
   for (typename std::list<typename ParameterType2::ProcessParameterType>::iterator
       pIter = p.process_parameters.begin(); pIter

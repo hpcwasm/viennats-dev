@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 3.4)
 set(BUILD_WASM true CACHE BOOL "build webassembly")
 
 IF(BUILD_WASM)
-  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_BASE_DIR}/boost/lib/emscripten")
+  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_BASE_DIR}/install/boost")
   set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_BASE_DIR}/boost")
-  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_BASE_DIR}/vtk/install/lib/cmake/vtk-8.1")  
+  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_BASE_DIR}/install/vtk/lib/cmake/vtk-8.1")  
   add_definitions(-DBUILD_WASM)
 ENDIF(BUILD_WASM) 
 
@@ -38,9 +38,9 @@ OPTION(VIENNATS_STATIC_BUILD "" OFF)
 #################
 # disable-new-dtags is necessary for ld > 2.27
 IF(NOT BUILD_WASM)
-  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -fmax-errors=5  -Wl,--disable-new-dtags")
+  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -ferror-limit=5  -Wl,--disable-new-dtags")
 ELSE(NOT BUILD_WASM)
-  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -fmax-errors=5")
+  SET(CMAKE_CXX_FLAGS "-Wall -pedantic -ferror-limit=5")
 ENDIF(NOT BUILD_WASM) 
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 ")

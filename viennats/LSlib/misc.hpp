@@ -67,8 +67,10 @@ namespace lvlset {
                 assert(it.center().pt_id()!=LevelSetType::UNDEF_PT);            //TODO
 
                 assert(it.center().pt_id()<LevelSetType::SEGMENT_PT);
-
-
+                std::cout << "Current Point: " << it.center().start_indices() << std::endl;
+                std::cout << "is_defined: " << it.center().is_defined() << std::endl;
+                std::cout << "sign: " << int(it.center().sign()) << std::endl;
+                std::cout << "value: " << it.center().value() << std::endl;
                 if (it.center().is_defined()) {
                     for (int i=0; i<2*D; ++i ) {
                         assert(it.neighbor(i).pt_id()<LevelSetType::SEGMENT_PT);
@@ -79,7 +81,7 @@ namespace lvlset {
                                 oss << "Value center point: " << it.center().value() << "  Value neighbor point: " << it.neighbor(i).value() << std::endl;
                             }
                         } else {
-                            if(it.neighbor(i).sign()==0)  {                     //TODO POS_SIGN
+                            if(int(it.neighbor(i).sign())==0)  {                     //TODO sign_type::POS_SIGN
                                 if (it.center().value()<value_type(-0.5)) {
                                     oss << "The defined point " << it.center().start_indices() << " has a level set value less than -0.5 but has an undefined positive neighbor in direction " << i << "!" << std::endl;
                                 }

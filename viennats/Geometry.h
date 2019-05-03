@@ -774,7 +774,7 @@ namespace geometry {
       f.close();
       #if defined(BUILD_WASM)
       wasm::vtswasm::FileReady(FileName);
-      #endif        
+      #endif
     }
 
     void Write(const std::string& FileName) const {
@@ -891,7 +891,7 @@ namespace geometry {
       f.close();
       #if defined(BUILD_WASM)
       wasm::vtswasm::FileReady(FileName);
-      #endif      
+      #endif
     }
 
     void ReadVTK(  std::string FileName,
@@ -1549,8 +1549,8 @@ namespace geometry {
         grid_max[h] = std::floor(geometry.Max[h] / p.grid_delta + p.snap_to_boundary_eps);
       }
     #ifdef VERBOSE
-      std::cout << "min = " << (geometry.Min) << "   " << "max = " << (g.Max) << std::endl;
-      std::cout << "min = " << (geometry.Min / p.grid_delta) << "   " << "max = " << (g.Max / p.grid_delta) << std::endl;
+      std::cout << "min = " << (geometry.Min) << "   " << "max = " << (geometry.Max) << std::endl;
+      std::cout << "min = " << (geometry.Min / p.grid_delta) << "   " << "max = " << (geometry.Max / p.grid_delta) << std::endl;
     #endif
       msg::print_done();
 

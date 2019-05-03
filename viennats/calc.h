@@ -89,7 +89,7 @@ namespace calc {
 
             int sgn_count=0;
             for (int i=0;i<(1<<D);i++) {
-                sgn_count+=it.corner(i).sign();
+                sgn_count+=int(it.corner(i).sign());
             }
 
             if ((sgn_count!=(1<<D)) && (sgn_count!=0)) {

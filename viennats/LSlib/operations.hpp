@@ -51,7 +51,7 @@ namespace lvlset {
                 if (math::abs(d)<std::numeric_limits<typename LevelSetType::value_type>::max()) {
                     tmp.push_back(0,pos, d);      //TODO
                 } else {
-                    tmp.push_back_undefined(0, pos, (tmp.sign(d)==POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);     //TODO
+                    tmp.push_back_undefined(0, pos, (tmp.sign(d)==sign_type::POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);     //TODO
                 }
 
                 switch(compare(itA.end_indices(), itB.end_indices())) {
@@ -106,7 +106,7 @@ namespace lvlset {
                         if (math::abs(d)<std::numeric_limits<typename LevelSetType::value_type>::max()) {
                             tmp.push_back(0,pos, d);      //TODO
                         } else {
-                            tmp.push_back_undefined(0, pos, (tmp.sign(d)==POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);     //TODO
+                            tmp.push_back_undefined(0, pos, (tmp.sign(d)==sign_type::POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);     //TODO
                         }
 
                         switch(compare(itA.end_indices(), itB.end_indices())) {

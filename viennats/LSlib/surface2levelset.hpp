@@ -364,6 +364,11 @@ namespace lvlset {
             }
         }
 
+        std::cout << "LevelSet Structure" << std::endl;
+        for(const auto& p:points2){
+          std::cout << p.first << " = " << p.second << std::endl;
+        }
+
         l.insert_points(points2);    //initialize level set function
 
         if (report_import_errors) {

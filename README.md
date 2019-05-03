@@ -15,10 +15,7 @@ export VIENNATS_BASE_DIR=/home/manstetten/github_hpcwasm/viennats-dev
 export VIENNATS_WEBAPP_DIR=/home/manstetten/github_hpcwasm/viennats-webapp
 
 # for emscripten
-export HPCWASM_BASE_DIR=/home/manstetten/ProgramsDev/hpcwasm
-export HPCWASM_BASE_DIR_EMSDK=$HPCWASM_BASE_DIR/emsdk
-export EM_CONFIG=$HPCWASM_BASE_DIR_EMSDK/.emscripten
-source $HPCWASM_BASE_DIR_EMSDK/emsdk_env.sh
+source /home/manstetten/ProgramsDev/hpcwasm/emsdk/emsdk_env.sh
 ```
 
 ```bash

@@ -39,8 +39,10 @@ namespace lvlset {
         }
 
         template<class T> inline bool signbit(T x) {
-            #ifdef LVLSET_HAVE_STD_SIGNBIT
-                return std::signbit(x);
+            #ifdef BUILD_WASM
+              return x < T(0);
+            #elif LVLSET_HAVE_STD_SIGNBIT
+              return std::signbit(x);
             #else
                 return copysign(static_cast<T>(1),x)<static_cast<T>(0);
             #endif

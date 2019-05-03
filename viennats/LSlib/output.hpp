@@ -352,7 +352,7 @@ namespace lvlset {
 #if defined(BUILD_WASM)
       std::cout << "fileready VTU:" << oss.str() << std::endl;
       wasm::vtswasm::FileReady(oss.str());
-#endif         
+#endif
       }
 
 
@@ -368,7 +368,7 @@ namespace lvlset {
 #if defined(BUILD_WASM)
       std::cout << "fileready VTP:" << oss.str() << std::endl;
       wasm::vtswasm::FileReady(oss.str());
-#endif         
+#endif
       }
 
     }
@@ -413,7 +413,7 @@ namespace lvlset {
 #if defined(BUILD_WASM)
       std::cout << "fileready VTP:" << filename << std::endl;
       wasm::vtswasm::FileReady(filename);
-#endif             
+#endif
     }
 
     template <class GridTraitsType, class LevelSetTraitsType, class DataType>
@@ -468,7 +468,7 @@ namespace lvlset {
 #if defined(BUILD_WASM)
       std::cout << "fileready VTP:" << filename << std::endl;
       wasm::vtswasm::FileReady(filename);
-#endif          
+#endif
     }
 
 
@@ -535,7 +535,7 @@ namespace lvlset {
         writeVTP(s, filename + ".vtp");
         wasm::vtswasm::FileReady(filename + ".vtp");
         wasm::vtswasm::FileReady(filename);
-#endif        
+#endif
     }
 
     template <class GridTraitsType, class LevelSetTraitsType>
@@ -714,7 +714,7 @@ namespace lvlset {
 
             float dist;
             if (only_signs) {
-                if (it.sign()==POS_SIGN) dist=limit; else dist=-limit;
+                if (it.sign()==sign_type::POS_SIGN) dist=limit; else dist=-limit;
             } else {
                 dist=static_cast<float>(it.value());
                 dist=std::min(limit,dist);
@@ -1221,7 +1221,7 @@ namespace lvlset {
         tmp_fin.seekg(
             (long)fin.tellg() +
             (long)
-                bytes_to_read); // set position to the defined indices for runtypes        
+                bytes_to_read); // set position to the defined indices for runtypes
         sum = 0;
         for(unsigned int y = 0; y < bytes_to_read; y++){
           fin.read((char *)&byte, 1);

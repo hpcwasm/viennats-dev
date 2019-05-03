@@ -153,7 +153,7 @@ namespace lvlset {
 
             unsigned int signs=0;
             for(int i=0;i<(1<<D);i++) {
-                if(it_c.corner(i).sign()==POS_SIGN) signs|=(1<<i);
+                if(it_c.corner(i).sign()==sign_type::POS_SIGN) signs|=(1<<i);
             }
 
             if (signs==0) continue;

@@ -21,6 +21,7 @@
 #include <string>
 #include <sstream>
 #include <bitset>
+#include <cstdint>
 
 #include <iostream>     //TODO
 #include "misc.hpp"     //TODO test
@@ -57,7 +58,7 @@ namespace lvlset {
     unsigned top_levelset_id=0;
     // types and constants
 
-    enum sign_type {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
+    enum class sign_type : int {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
 
     typedef unsigned int direction_type;            //direction type
     const direction_type X_DIRECTION=0;             //constants for the directions
@@ -1194,12 +1195,12 @@ namespace lvlset {
         //##############################################
 
         static sign_type sign(value_type value) {                           //this function returns the sign
-            return (sign_type(math::signbit(value))?NEG_SIGN:POS_SIGN);     //of a given level set value "value"
+            return (math::signbit(value)?sign_type::NEG_SIGN:sign_type::POS_SIGN);     //of a given level set value "value"
         }
 
         sign_type sign(size_type pt_id) const {     //this function returns the sign of a grid point given by
-            if (pt_id==POS_PT) return POS_SIGN;     //its point-ID, and also checks if the point-ID is a positive or
-            if (pt_id==NEG_PT) return NEG_SIGN;     //negative run
+            if (pt_id==POS_PT) return sign_type::POS_SIGN;     //its point-ID, and also checks if the point-ID is a positive or
+            if (pt_id==NEG_PT) return sign_type::NEG_SIGN;     //negative run
             //shfdhsfhdskjhgf assert(is_defined(pt_id));
             return sign_type(sign(value2(pt_id)));
         }
@@ -1313,7 +1314,7 @@ namespace lvlset {
 
         levelset(const grid_type2&);
         //initializes a levelset function without any defined points
-        //if sign = POS_SIGN(default) one  undefined run of specified sign
+        //if sign = sign_type::POS_SIGN(default) one  undefined run of specified sign
         //is created containing all grid points
 
         levelset(const grid_type2&,  value_type, int, bool );
@@ -1652,7 +1653,7 @@ namespace lvlset {
 
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::INACTIVE=std::numeric_limits<size_type>::max();
 
-// TODO global static 
+// TODO global static
     // template<class GridTraitsType, class LevelSetTraitsType> unsigned levelset<GridTraitsType, LevelSetTraitsType>::top_levelset_id=0;
 
 
@@ -1665,7 +1666,8 @@ namespace lvlset {
         //from a sorted list "point_defs" of index/level set value-pairs
         //NOTE: a valid list of points must include all grid points, which are connected by edges of the grid, which are intersected
         //by the surface
-
+        std::cout << "Starting insert_points" << std::endl;
+        std::cout << "sign_type::POS_SIGN=" << int(sign_type::POS_SIGN) << ", sign_type::NEG_SIGN=" << int(sign_type::NEG_SIGN) << std::endl;
         //TODO: is not parallelized yet
         assert(!point_defs.empty());
 
@@ -1675,7 +1677,9 @@ namespace lvlset {
         initialize(tmp_segmentation);
 
         if (point_defs.front().first!=Grid.min_point_index()) {
-            push_back_undefined(0, Grid.min_point_index(),(sign_type(sign(point_defs.front().second))==POS_SIGN)?POS_PT:NEG_PT);     //TODO
+            std::cout << "front()!=min_point_index" << std::endl;
+            std::cout << "push_back_undef: " << ((sign_type(sign(point_defs.front().second))==sign_type::POS_SIGN)?POS_PT:NEG_PT) << std::endl;
+            push_back_undefined(0, Grid.min_point_index(),(sign_type(sign(point_defs.front().second))==sign_type::POS_SIGN)?POS_PT:NEG_PT);     //TODO
         }
 
         typename PointsType::const_iterator begin_pt_defs=point_defs.begin();//+starts[t_num];
@@ -1689,7 +1693,7 @@ namespace lvlset {
         while (it_pt_defs!=end_pt_defs) {
 
             if (math::abs(it_pt_defs->second)>=std::numeric_limits<typename PointsType::value_type::second_type>::max()) {
-                push_back_undefined(0,it_pt_defs->first,(sign_type(sign(it_pt_defs->second))==POS_SIGN)?POS_PT:NEG_PT);
+                push_back_undefined(0,it_pt_defs->first,(sign_type(sign(it_pt_defs->second))==sign_type::POS_SIGN)?POS_PT:NEG_PT);
             } else {
                 push_back(0,it_pt_defs->first, it_pt_defs->second);
             }
@@ -1726,7 +1730,7 @@ namespace lvlset {
 
                 if (tmp>=next_index) break;
 
-                push_back_undefined(0,tmp,(signs[q]==POS_SIGN)?POS_PT:NEG_PT);
+                push_back_undefined(0,tmp,(signs[q]==sign_type::POS_SIGN)?POS_PT:NEG_PT);
 
             }
         }
@@ -1925,7 +1929,7 @@ namespace lvlset {
                 if (it.is_defined()) {
                     s.push_back(it.start_indices(),it.value());
                 } else {
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
         }
@@ -1963,10 +1967,10 @@ namespace lvlset {
                     if (i!=2*D) {
                         s.push_back(it.indices(),it.center().value());
                     } else {
-                        s.push_back_undefined(it.indices(),(sgn==POS_SIGN)?POS_PT:NEG_PT);
+                        s.push_back_undefined(it.indices(),(sgn==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
                 } else {
-                    s.push_back_undefined(it.indices(),(it.center().sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.indices(),(it.center().sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
         }
@@ -2045,16 +2049,16 @@ namespace lvlset {
                             //std::copy(old_data.begin()+it.center().active_pt_id2()*data_size,old_data.begin()+it.center().active_pt_id2()*data_size+data_size,std::back_inserter(data));
                         }
                     } else {
-                        s.push_back_undefined(it.start_indices(),(it.center().sign()==POS_SIGN)?POS_PT:NEG_PT);
+                        s.push_back_undefined(it.start_indices(),(it.center().sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
 
                 } else {    //if the center is not an inactive grid point
 
                     int n_pt=-1;
-                    if (it.center().sign()==POS_SIGN) {
+                    if (it.center().sign()==sign_type::POS_SIGN) {
                         value_type distance=POS_VALUE;
                         for(int i=0;i<2*D;i++) {
-                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==NEG_SIGN)) {
+                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==sign_type::NEG_SIGN)) {
                                 if (distance>it.neighbor(i).value()+1.) {
                                     distance=copysign(it.neighbor(i).value()+1.,1.);
                                     if (distance<=0.5) n_pt=i;
@@ -2075,7 +2079,7 @@ namespace lvlset {
                     } else {
                         value_type distance=NEG_VALUE;
                         for(int i=0;i<2*D;i++) {
-                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==POS_SIGN)) {
+                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==sign_type::POS_SIGN)) {
                                 if (distance<it.neighbor(i).value()-1.) {
                                     distance=copysign(it.neighbor(i).value()-1.,-1.);
                                     if (distance>=-0.5) n_pt=i;
@@ -2188,7 +2192,7 @@ namespace lvlset {
                     if (math::abs(d)<std::numeric_limits<typename LevelSetType::value_type>::max()) {
                         s.push_back(pos, d);
                     } else {
-                        s.push_back_undefined(pos, (sign(d)==POS_SIGN)?POS_PT:NEG_PT);
+                        s.push_back_undefined(pos, (sign(d)==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
 
                     switch(compare(itA.end_indices(), itB.end_indices())) {
@@ -2254,7 +2258,7 @@ namespace lvlset {
                             continue;
                         }
                     }
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
         }
@@ -2287,7 +2291,7 @@ namespace lvlset {
                 if (it.is_defined()) {
                     s.push_back(it.start_indices(),it.value2());
                 } else {
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
 
@@ -2302,23 +2306,32 @@ namespace lvlset {
 
         const value_type total_limit=end_width*0.5;
 
+        std::cout << "1: creating old_lvlset" << std::endl;
         levelset<GridTraitsType, LevelSetTraitsType> old_lvlset(grid());
 
         int num_required_cycles=(1+end_width-start_width)/2;
-
+        std::cout << "2: Starting required cycles: " << num_required_cycles << std::endl;
         for (int a=0; a< num_required_cycles; ++a) {
 
             const int num_layers=end_width+2*(1+a-num_required_cycles);
             const value_type limit = num_layers*value_type(0.5);
+            std::cout << "3: value limit: " << limit << ", total_limit: " << total_limit << std::endl;
+            std::cout << "4: Swapping old_lvlset" << std::endl;
+
+            {
+              const_iterator_neighbor it_test(*this, grid().min_point_index());
+              std::cout << "value vefore swap: " << it_test.center().value() << "abs" <<  math::abs(it_test.center().value()) << "is_def" << it_test.center().is_defined() << std::endl;
+            }
 
             swap(old_lvlset);
 
             //double tmp;
             //tmp=-my::time::GetTime();
+            std::cout << "5: Initializing levelset" << std::endl;
             initialize(old_lvlset.get_new_segmentation(), old_lvlset.get_allocation()*(static_cast<double>(num_layers)/old_lvlset.num_layers));
             //tmp+=my::time::GetTime();
             //std::cout << "time1 = " << tmp;
-
+            std::cout << "6: Starting parallel section with num_threads: " << sub_levelsets.size() << std::endl;
             #pragma omp parallel num_threads(sub_levelsets.size()) //use num_threads(sub_levelsets.size()) threads
             {
                 //#pragma omp for schedule(static, 1)
@@ -2332,23 +2345,35 @@ namespace lvlset {
 
                     sub_levelset_type & s=sub_levelsets[p];
 
+                    // std::cout << "7: Setting up segmentation points" << std::endl;
+
                     vec<index_type, D> begin_v=(p==0)?grid().min_point_index():segmentation[p-1];
                     vec<index_type, D> end_v=(p!=static_cast<int>(segmentation.size()))?segmentation[p]:grid().increment_indices(grid().max_point_index());
+                    // std::cout << "Start: " << begin_v << ", End: " << end_v << std::endl;
+                    //
+                    // std::cout << "8: Starting loop over points" << std::endl;
 
+                    unsigned counter = 0;
                     for (const_iterator_neighbor it(old_lvlset, begin_v);it.start_indices()!=end_v;it.next()) {
-
+                        // std::cout << "9: centre value: " << it.center().value() << ", abs: " << math::abs(it.center().value()) << "is_def" << it.center().is_defined() << std::endl;
                         if (math::abs(it.center().value())<=total_limit) {
                             s.push_back(it.start_indices(),it.center().value());
                         } else {
-                            if (it.center().sign()==POS_SIGN) {
+                            // std::cout << "10. centre sign: " << int(it.center().sign()) << std::endl;
+                            // std::cout << "sign_type::POS_SIGN: " << int(sign_type::POS_SIGN) << ", POS_VALUE: " << POS_VALUE << std::endl;
+                            // std::cout << "sign_type::NEG_SIGN: " << int(sign_type::NEG_SIGN) << ", NEG_VALUE: " << NEG_VALUE << std::endl;
+                            if (it.center().sign()==sign_type::POS_SIGN) {
                                 value_type distance=POS_VALUE;
                                 for (int i=0;i<2*D;i++) {
                                     //if (it.neighbor(i).sign()>0) //shfdhsfhdskjhgf assert(it.neighbor(i).value()!=0);
                                     distance=std::min(distance,it.neighbor(i).value()+value_type(1));
                                 }
+                                // std::cout << "11. positive point, distance: " << distance << std::endl;
                                 if (distance<=limit) {
+                                  // std::cout << "pushing defined point" << std::endl;
                                     s.push_back(it.start_indices(),distance);
                                 } else {
+                                  // std::cout << "pushing undefined point: POS_PT: " << POS_PT << std::endl;
                                     s.push_back_undefined(it.start_indices(),POS_PT);
                                 }
                             } else {
@@ -2357,13 +2382,21 @@ namespace lvlset {
                                     //if (it.neighbor(i).sign()<0) //shfdhsfhdskjhgf assert(it.neighbor(i).value()!=0);
                                     distance=std::max(distance,it.neighbor(i).value()-value_type(1));
                                 }
+                                // std::cout << "12. negative point, distance: " << distance << std::endl;
                                 if (distance>=-limit) {
+                                  // std::cout << "pushing defined point" << std::endl;
                                     s.push_back(it.start_indices(),distance);
                                 } else {
-                                    s.push_back_undefined(it.start_indices(),NEG_PT);
+                                  // std::cout << "pushing undefined point: POS_PT: " << POS_PT << std::endl;
+                                  s.push_back_undefined(it.start_indices(),NEG_PT);
                                 }
                             }
                         }
+                        // if(counter>10){
+                        //   std::cout << "Reached 11 iterations, aborting." << std::endl;
+                        //   abort();
+                        // }
+                        counter++;
                     }
                 }
             }
@@ -2438,7 +2471,7 @@ namespace lvlset {
                     //insert new point
                     value_type distance;
                     for (int m=0;m<2*D;++m) ix[m].go_to_indices_sequential(coords);
-                    if (it_mid.sign()==POS_SIGN) {
+                    if (it_mid.sign()==sign_type::POS_SIGN) {
                         distance=POS_VALUE;
                         for (int m=0;m<2*D;++m) distance=std::min(distance, ix[m].value()+value_type(1));
                     } else {
@@ -2447,7 +2480,7 @@ namespace lvlset {
                     }
                     s.push_back(coords, distance);
                 } else {
-                    s.push_back_undefined(coords,  (it_mid.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(coords,  (it_mid.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
 
@@ -2524,7 +2557,7 @@ namespace lvlset {
                     if (it.center().is_defined()) {
                         s.push_back(it.start_indices(),it.center().value());
                     } else {
-                        if (it.center().sign()==POS_SIGN) {
+                        if (it.center().sign()==sign_type::POS_SIGN) {
                             value_type distance=POS_VALUE;
                             std::bitset<D> x;
                             for (int i=0;i<2*D;i++) {
@@ -2874,12 +2907,17 @@ namespace lvlset {
         value_type value() const {
             //returns the level set value for the current run
             //if the run is undefined either POS_VALUE or NEG_VALUE is returned
+            std::cout << "is_defined: " << is_defined() << std::endl;
+            std::cout << "current_run_code: " << current_run_code() << std::endl;
             if (is_defined()) {
+              std::cout << "is_defined==true" << std::endl;
                 return value2();
             } else if (current_run_code()==POS_PT) {
+                std::cout << "current_run_code()==POS_PT" << std::endl;
                 return POS_VALUE;
             } else {
                 //assert(current_run_code()==NEG_PT);                                                  //TODO
+                std::cout << "current_run_code()==NEG_PT" << std::endl;
                 return NEG_VALUE;
             }
         }

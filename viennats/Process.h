@@ -185,7 +185,7 @@ namespace proc {
 
         Connectivities.clear();
         for (typename LStype::template const_iterator_neighbor_filtered<typename LStype::filter_active,1> it(l);!it.is_finished();it.next()) {
-            if (it.center().sign()==lvlset::POS_SIGN) {
+            if (it.center().sign()==lvlset::sign_type::POS_SIGN) {
                 assert(it.center().get_level()==0);
                 assert(it.center().get_segment_num()<l.number_of_segments());
                 Connectivities.push_back(component[comp_lst[it.center().get_segment_num()][0][it.center().run_type_position()]]==source_node);          //TODO
@@ -608,6 +608,10 @@ namespace proc {
 
       }
 
+#ifdef VERBOSE
+      msg::print_start("Wrapping levelsets...");
+#endif
+
       // only put mask, where no other LS was before
       if(!Model.ignore_other_materials()){
         mask_ls.invert();
@@ -626,7 +630,9 @@ namespace proc {
       LevelSets.push_front(mask_ls);
       LevelSets.front().set_levelset_id();
 
-
+#ifdef VERBOSE
+      msg::print_done();
+#endif
         //TODO output and time
 
     }
