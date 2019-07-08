@@ -9,11 +9,12 @@ cmake_minimum_required(VERSION 3.4)
 set(BUILD_WASM true CACHE BOOL "build webassembly")
 
 IF(BUILD_WASM)
-  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_BASE_DIR}/boost/lib/emscripten")
-  set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_BASE_DIR}/boost")
-  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_BASE_DIR}/vtk/install/lib/cmake/vtk-8.1")  
+  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
+  set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_INCLUDE_DIR_BOOST}")
+  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_CONFIG_DIR_VTK}")  
   add_definitions(-DBUILD_WASM)
 ENDIF(BUILD_WASM) 
+
 
 # Project setup
 ###############
@@ -169,7 +170,7 @@ set(viennaTS "viennats")
 IF(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp)
 ELSE(NOT BUILD_WASM)
-  ADD_EXECUTABLE(${viennaTS} src/viennats.cpp)
+  ADD_EXECUTABLE(${viennaTS} src/viennats.cpp wasm/vtswasm.cpp)
   # copy files to assets folder
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets)
 
@@ -198,18 +199,15 @@ ELSE(NOT BUILD_WASM)
   # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
   # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
   # --preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets \
-
+  #-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   message("using WASM")
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
   LINK_FLAGS " --bind -v \
-  -s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   -s WASM=1 \
   -s ALLOW_MEMORY_GROWTH=0 \
   -s TOTAL_MEMORY=536870912 \
-  -s WASM_MEM_MAX=536870912 \
-  -s \"BINARYEN_METHOD='native-wasm'\" \
-  -s \"BINARYEN_TRAP_MODE='allow'\"")  
+  -s WASM_MEM_MAX=536870912")  
 ENDIF(NOT BUILD_WASM) 
 
 IF(VIENNATS_STATIC_BUILD)
