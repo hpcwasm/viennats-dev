@@ -40,7 +40,7 @@ TO ADD NEW PARAMETER TO THIS PARSER:
 
 
 namespace proc{
-        enum FiniteDifferenceSchemeType {ENGQUIST_OSHER_1ST_ORDER, ENGQUIST_OSHER_2ND_ORDER, LAX_FRIEDRICHS_1ST_ORDER, LAX_FRIEDRICHS_2ND_ORDER};
+        enum FiniteDifferenceSchemeType {ENGQUIST_OSHER_1ST_ORDER, ENGQUIST_OSHER_2ND_ORDER, LAX_FRIEDRICHS_1ST_ORDER, LAX_FRIEDRICHS_2ND_ORDER,STENCIL_LOCAL_LAX_FRIEDRICHS};
 }
 
 
@@ -160,7 +160,8 @@ struct ReportError {
             ("ENGQUIST_OSHER_1ST_ORDER", proc::ENGQUIST_OSHER_1ST_ORDER)
             ("ENGQUIST_OSHER_2ND_ORDER", proc::ENGQUIST_OSHER_2ND_ORDER)
             ("LAX_FRIEDRICHS_1ST_ORDER", proc::LAX_FRIEDRICHS_1ST_ORDER)
-            ("LAX_FRIEDRICHS_2ND_ORDER", proc::LAX_FRIEDRICHS_2ND_ORDER);
+            ("LAX_FRIEDRICHS_2ND_ORDER", proc::LAX_FRIEDRICHS_2ND_ORDER)
+            ("STENCIL_LOCAL_LAX_FRIEDRICHS", proc::STENCIL_LOCAL_LAX_FRIEDRICHS);
         }
     }finite_difference_symbols;
 
@@ -196,8 +197,8 @@ struct ReportError {
 
             struct ProcessParameterType{
                 double ProcessDistance;
-                double AFMStartPosition[3];
-                double AFMEndPosition[3];
+                std::vector<double> AFMStartPosition;
+                std::vector<double> AFMEndPosition;
                 int AddLayer;                   //the number of level set layers added to the geometry before the process is started
                 double ProcessTime;             //the process time in seconds
                 unsigned int ALDStep;
@@ -287,6 +288,7 @@ struct ReportError {
             bool print_vtp;
             bool print_dx;
             bool print_lvst;
+            bool print_explicit_lvst;
             bool print_volume_tetra;
             bool print_volume_hull;
             bool print_velocities;
@@ -366,6 +368,7 @@ struct ReportError {
         (bool, print_vtp)
         (bool, print_dx)
         (bool, print_lvst)
+        (bool, print_explicit_lvst)
         (bool, print_volume_tetra)
         (bool, print_volume_hull)
         (bool, print_velocities)
@@ -386,8 +389,8 @@ struct ReportError {
 
     BOOST_FUSION_ADAPT_STRUCT(client::Parameters::ProcessParameterType,
         (double, ProcessDistance)
-        (double, AFMStartPosition[3])
-        (double, AFMEndPosition[3])
+        (std::vector<double>, AFMStartPosition)
+        (std::vector<double>, AFMEndPosition)
         (int, AddLayer)
         (double, ProcessTime)
         (unsigned int, ALDStep)
@@ -469,8 +472,8 @@ struct ReportError {
                 quotes %= '"' >> lexeme[+(char_ - '"') > '"'];
                 listed %= '"' >> +(lexeme[+(char_ - '"' - ',')] % ',') >> '"';
                 boolean %= boolean_symbols[_val=_1];
-                intvec %= '{' >> +(lexeme[int_] % ',') > '}';
-                doublevec %= '{' >> +(lexeme[double_] % ',') > '}';
+                intvec %= ('{' >> +(lexeme[int_] % ',')) > '}';
+                doublevec %= ('{' >> +(lexeme[double_] % ',')) > '}';
                 boundaryvec %= (('{' > +(lexeme[boundary_condition_symbols] % ',') > '}') % ',');
                 model_param_end = lit(';') >> lit('}') >> lit(';');
 
@@ -502,6 +505,7 @@ struct ReportError {
                 print_vtp %= lit("print_vtp") > '=' > boolean > ';';
                 print_dx %= lit("print_dx") > '=' > boolean > ';';
                 print_lvst %= lit("print_lvst") > '=' > boolean > ';';
+                print_explicit_lvst %= lit("print_explicit_lvst") > '=' > boolean > ';';
                 print_volume_tetra %= lit("print_volume_tetra") > '=' > boolean > ';';
                 print_volume_hull %= lit("print_volume_hull") > '=' > boolean > ';';
                 print_velocities %= lit("print_velocities") > '=' > boolean > ';';
@@ -567,8 +571,8 @@ struct ReportError {
                 input_shift ^ default_disc_orientation ^ ignore_materials ^
                 change_input_parity ^ random_seed ^ num_dimensions ^ omp_threads ^ domain_extension ^
                 receptor_radius ^ further_tracking_distance ^ bits_per_distance ^ output_volume_extract_single_materials ^ print_vtk ^ print_vtp ^ print_dx ^ print_lvst ^
-                print_volume_tetra ^ print_volume_hull ^ print_velocities ^ print_coverages ^
-                print_rates ^ print_materials ^
+                print_explicit_lvst ^ print_volume_tetra ^ print_volume_hull ^ print_velocities ^
+                print_coverages ^ print_rates ^ print_materials ^
                 print_statistics ^ max_extended_starting_position ^ open_boundary ^
                 remove_bottom ^ snap_to_boundary_eps ^ process_cycles ^ material_mapping ^
                 add_layer ^ boundary_conditions ^ processes;
@@ -615,6 +619,7 @@ struct ReportError {
                 print_vtp,
                 print_dx,
                 print_lvst,
+                print_explicit_lvst,
                 print_volume_hull,
                 print_volume_tetra,
                 print_velocities,
@@ -680,6 +685,7 @@ struct ReportError {
         print_vtp=false;
         print_dx=false;
         print_lvst=true;
+        print_explicit_lvst=false;
         print_volume_tetra=true;
         print_volume_hull=false;
         print_velocities=false;
@@ -738,7 +744,14 @@ struct ReportError {
 
 
         //IMPORTANT: MODEL PARAMETERS ARE MISSING }; AT THE END, NEED TO ADD BEFORE ANYTHING ELSE
-        for(std::list<client::Parameters::ProcessParameterType>::iterator it=process_parameters.begin(); it!=process_parameters.end(); ++it) it->ModelParameters.append(";");
+        // SelectiveDeposition process requires that add_layer is at least 1
+        for(std::list<client::Parameters::ProcessParameterType>::iterator it=process_parameters.begin(); it!=process_parameters.end(); ++it){
+           it->ModelParameters.append(";");
+
+           if((it->ModelName == "SelectiveDeposition") && (it->AddLayer<1)){
+             it->AddLayer = 1;
+           }
+        }
 
         // fix input transformation
         for(size_t i=0; i<input_transformation.size(); ++i) input_transformation_signs[i] = input_transformation[i] >= 0;

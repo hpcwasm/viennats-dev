@@ -22,7 +22,7 @@ PROJECT(ViennaLS)
 
 set(VERSION_MAJOR 2)
 set(VERSION_MINOR 3)
-set(VERSION_PATCH 0)
+set(VERSION_PATCH 1)
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 
 ADD_DEFINITIONS(-DVIENNATS_VERSION="${VERSION}")
@@ -78,7 +78,6 @@ ENDIF(BUILD_WASM)
 ################
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 
-
 # Find prerequisites
 ####################
 
@@ -87,12 +86,32 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # OpenMP ..
 IF(NOT BUILD_WASM)
-  FIND_PACKAGE(OpenMP REQUIRED)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  ###############################################
+  #  compiler dependent settings for OpenMP
+  ###############################################
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+      #MESSAGE(STATUS ${CMAKE_CXX_FLAGS})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Werror -ferror-limit=2")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libomp")
+  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+      # disable-new-dtags is necessary for ld > 2.27
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Werror -fmax-errors=2")
+      FIND_PACKAGE(OpenMP REQUIRED)
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qopenmp  ")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fmax-errors=2")
+  endif()  
+
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
 ELSE(NOT BUILD_WASM)
   # no openmp
   remove_definitions(-D_OPENMP)
 ENDIF(NOT BUILD_WASM) 
+
+
+# disable-new-dtags sets RPATH which searches for libs recursively, instead of RUNPATH which does not
+
 
 # Boost ..
 IF(NOT BUILD_WASM)
@@ -129,20 +148,28 @@ ENDIF(NOT BUILD_WASM)
 # VTK
 # VTK_DIR needs to point to the VTK installation and to VTK/lib/cmake/vtk-{vtk-version}
 IF(NOT BUILD_WASM)
-  set(VTK_DIR $ENV{VTK_DIR})
+  IF(VIENNATS_STATIC_BUILD)
+    set(VTK_DIR $ENV{VTK_STATIC_DIR})
+  ELSE(VIENNATS_STATIC_BUILD)
+    set(VTK_DIR $ENV{VTK_DIR})
+  ENDIF(VIENNATS_STATIC_BUILD)  
 ELSE(NOT BUILD_WASM)
   set(VTK_DIR ${WASM_VTK_CMAKE_DIR})
 ENDIF(NOT BUILD_WASM) 
+
+
+
 
 find_package(VTK REQUIRED)
 
 IF(VTK_FOUND)
   message(STATUS "VTK found (include: ${VTK_INCLUDE_DIRS}, lib: ${VTK_LIBRARY_DIRS})")
   include(${VTK_USE_FILE})
-  #only link necessary VTK libraries in order for static linking to work (-lGL fails)
+  #only link necessary VTK libraries
+  set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML)
+  message(STATUS "Including following VTK Libraries: ${VTK_LIBRARIES}")
   IF(VIENNATS_STATIC_BUILD)
-    set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML)
-    message(STATUS "Static build: Only including following VTK Libraries: ${VTK_LIBRARIES}")
+    message(STATUS "BUILDING STATIC BINARY")
   ENDIF(VIENNATS_STATIC_BUILD)
 
 ELSE(VTK_FOUND)
