@@ -384,6 +384,9 @@ namespace calc {
     const std::vector<unsigned int>& PointMaterials,
     const geom::cells<ParameterType::Dimension>& Cells,
     double ProcessTime) {
+        std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name() << std::endl;
+        std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name() << std::endl;
+        std::cout << "ProcessTime=" << ProcessTime << std::endl;
 //      std::cout << "1\n";
     const int D=ParameterType::Dimension;
     typedef ClusterPositionType<D, PartitionType> ClusterPositionType;
