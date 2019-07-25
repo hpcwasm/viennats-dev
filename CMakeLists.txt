@@ -7,6 +7,7 @@ cmake_minimum_required(VERSION 3.4)
 # WebAssembly Config for emscripten
 ###############
 set(BUILD_WASM false CACHE BOOL "build webassembly")
+set(BUILD_TBB false CACHE BOOL "build tbb, no omp")
 
 IF(BUILD_WASM)
   set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
@@ -77,6 +78,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # OpenMP ..
 IF(NOT BUILD_WASM)
+  IF(NOT BUILD_TBB)
   ###############################################
   #  compiler dependent settings for OpenMP
   ###############################################
@@ -95,6 +97,18 @@ IF(NOT BUILD_WASM)
   endif()  
 
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
+  ELSE(NOT BUILD_TBB)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-unknown-pragmas")
+    set(TBB_BIN_DIR "/home/manstetten/github_hpcwasm/tbb/build/linux_intel64_gcc_cc7.3.0_libc2.27_kernel4.15.0_release")
+    set(TBB_INC_DIR "/home/manstetten/github_hpcwasm/tbb")
+    set(TBB_LIBRARIES "tbb")
+    ADD_DEFINITIONS ( -pthread)
+    INCLUDE_DIRECTORIES(${TBB_INC_DIR})
+    LINK_DIRECTORIES(${TBB_BIN_DIR})
+    add_definitions(-D_TBB)
+    remove_definitions(-D_OPENMP)
+  ENDIF(NOT BUILD_TBB)
+
 ELSE(NOT BUILD_WASM)
   # no openmp
   remove_definitions(-D_OPENMP)
@@ -231,7 +245,7 @@ ENDIF(NOT BUILD_WASM)
 IF(VIENNATS_STATIC_BUILD)
   TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES} "-static")
 ELSE()
-  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES})
+  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES} ${TBB_LIBRARIES})
 ENDIF(VIENNATS_STATIC_BUILD)
 
 
