@@ -1,10 +1,10 @@
 #ifndef VTSWASM_H_
 #define VTSWASM_H_
-
+ 
 #include "json.hpp"
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
-
+  
 using json = nlohmann::json;
 
 namespace wasm {
@@ -17,7 +17,7 @@ public:
     wasm::vtswasm::callbackFunction = cb;
   }
   static void executeJSCallback(std::string message) {
-    wasm::vtswasm::callbackFunction(message);
+    // wasm::vtswasm::callbackFunction(message);
   }
   static void SimulationReady(double runtime) {
     json j = {{"simready", true}, {"runtime", runtime}};
@@ -27,7 +27,7 @@ public:
     json j = {{"fileready", true}, {"filename", filename}};
     wasm::vtswasm::executeJSCallback(j.dump(4));
   }
-};
+}; 
 
 } // namespace wasm
 

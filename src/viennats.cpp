@@ -10,17 +10,15 @@
    License:         MIT (X11), see file LICENSE in the base directory
 ============================================================================= */
 
-
-
-//COMPILE OPTIONS#####################################
+// COMPILE OPTIONS#####################################
 #define TEST_MODE
 //#define VERBOSE
 
-//Dimensions
+// Dimensions
 #define DIMENSION_3
 #define DIMENSION_2
 
-//Processes
+// Processes
 #define PROCESS_CONSTANT_RATES
 #define PROCESS_SIMPLE_DEPOSITION
 #define PROCESS_TiN_ALD
@@ -42,12 +40,12 @@
 #define PROCESS_SELECTIVE_DEPOSITION
 #define PROCESS_FIB
 
-//LS Processes
+// LS Processes
 #define PROCESS_PLANARIZATION
 #define PROCESS_MASK
 #define PROCESS_BOOLEANOPS
 
-//Flux calculation
+// Flux calculation
 #define PROCESS_CALCULATEFLUX
 
 #define COMPILE_PARTITION_NEIGHBOR_LINKS_ARRAYS
@@ -61,10 +59,10 @@
 #include "Time.h"
 
 #include <cassert>
+#include <list>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <list>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -130,7 +128,6 @@
 #include "Model/ModelSelectiveDeposition.h"
 #endif
 
-
 #ifdef PROCESS_FIB
 #include "Model/ModelFIB.h"
 #endif
@@ -139,63 +136,69 @@
 #include "Model/ModelCalculateFlux.h"
 #endif
 
-#include "Model/ModelPlanarization.h"
-#include "Model/ModelMask.h"
 #include "Model/ModelBooleanOps.h"
+#include "Model/ModelMask.h"
+#include "Model/ModelPlanarization.h"
 
 #include "Geometry.h"
-#include "Process.h"
 #include "LSlib/levelset.hpp"
-#include "message.h"
+#include "Process.h"
 #include "boundaries.h"
+#include "message.h"
 
+#ifdef _TBB
+#include "viennats.h"
+tbb::task_scheduler_init *sched = NULL;
+#endif
 
-///GridTraitsType Contains minimum and maximum indexes in each dimensional direction, boundary conditions, and the grid spacing
-template<int D>
-class GridTraitsType {
+/// GridTraitsType Contains minimum and maximum indexes in each dimensional
+/// direction, boundary conditions, and the grid spacing
+template <int D> class GridTraitsType {
 public:
   typedef int index_type;
   typedef double coord_type;
+
 private:
   index_type Min_[D], Max_[D];
   lvlset::boundary_type BoundaryConditions_[D];
   coord_type GridDelta;
+
 public:
-  ///Can be 2 or 3-dimensional
+  /// Can be 2 or 3-dimensional
   const static int dimensions = D;
-  const index_type* minima() const {return Min_;}
-  const index_type* maxima() const {return Max_;}
-  const lvlset::boundary_type* boundary_conditions() const {return BoundaryConditions_;}
-  const coord_type grid_delta() const{
-    return GridDelta;
+  const index_type *minima() const { return Min_; }
+  const index_type *maxima() const { return Max_; }
+  const lvlset::boundary_type *boundary_conditions() const {
+    return BoundaryConditions_;
   }
+  const coord_type grid_delta() const { return GridDelta; }
 
-
-  ///GridTraitsType constructor to populate the minimum and maximum values and the boundary conditions
-  template<class A, class B, class C>
-  GridTraitsType(const A& min, const A& max, const B& b, C grid_delta) ://, int open_boundary) :
-    GridDelta(grid_delta) {//, open_boundary_direction(open_boundary) {
+  /// GridTraitsType constructor to populate the minimum and maximum values and
+  /// the boundary conditions
+  template <class A, class B, class C>
+  GridTraitsType(const A &min, const A &max, const B &b, C grid_delta)
+      :                         //, int open_boundary) :
+        GridDelta(grid_delta) { //, open_boundary_direction(open_boundary) {
     for (int i = 0; i < D; i++) {
       Min_[i] = min[i];
       Max_[i] = max[i];
       BoundaryConditions_[i] = b[i];
     }
   }
-  //copy constructor
-  GridTraitsType(const GridTraitsType& g) :
-    GridDelta(g.GridDelta) {
+  // copy constructor
+  GridTraitsType(const GridTraitsType &g) : GridDelta(g.GridDelta) {
     for (int i = 0; i < D; i++) {
       Min_[i] = g.Min_[i];
       Max_[i] = g.Max_[i];
       BoundaryConditions_[i] = g.BoundaryConditions_[i];
     }
   }
-  //empty constructor
-  GridTraitsType(){}
+  // empty constructor
+  GridTraitsType() {}
 
-  void print() const{
+  void print() const {
     std::ostringstream oss;
-    for(int i=D;i--;){
+    for (int i = D; i--;) {
       oss << "Dimension " << i << ":" << std::endl
           << "    Grid min: " << Min_[i] << std::endl
           << "    Grid max: " << Max_[i] << std::endl
@@ -205,162 +208,169 @@ public:
     msg::print_message(oss.str());
   }
 
-  ///Returns the minimum index at in the "dir" axial direction
-  index_type min_index(int dir) const {
-    return Min_[dir];
-  }
+  /// Returns the minimum index at in the "dir" axial direction
+  index_type min_index(int dir) const { return Min_[dir]; }
 
-  ///Returns the maximum index at in the "dir" axial direction
-  index_type max_index(int dir) const {
-    return Max_[dir];
-  }
+  /// Returns the maximum index at in the "dir" axial direction
+  index_type max_index(int dir) const { return Max_[dir]; }
 
-  ///Returns the grid position in the "dir" axial direction (Index*GridDelta)
+  /// Returns the grid position in the "dir" axial direction (Index*GridDelta)
   coord_type grid_position(int dir, index_type Index) const {
     return Index * GridDelta;
   }
 
-  ///Returns the boundary conditions in the "dir" axial direction
+  /// Returns the boundary conditions in the "dir" axial direction
   lvlset::boundary_type boundary_condition(int dir) const {
     return BoundaryConditions_[dir];
   }
 };
 
-///Defines the size_type (unsigned int) and value_type (double) for the level set function
+/// Defines the size_type (unsigned int) and value_type (double) for the level
+/// set function
 class LevelSetTraitsType {
 public:
   typedef unsigned int size_type;
   typedef double value_type;
 };
 
-///ParameterType is the initial parameter type, which is inherited by a dimension-dependent ParameterDimType
-template<class ParameterType, int D>
-class ParameterDimType:
-  public ParameterType {
-    public:
-    static const int Dimension = D;
-    ParameterDimType(const ParameterType& p) :
-      ParameterType(p) {}
+/// ParameterType is the initial parameter type, which is inherited by a
+/// dimension-dependent ParameterDimType
+template <class ParameterType, int D>
+class ParameterDimType : public ParameterType {
+public:
+  static const int Dimension = D;
+  ParameterDimType(const ParameterType &p) : ParameterType(p) {}
 };
 
-///OutputInfoType stores the information necessary to output a geometry
+/// OutputInfoType stores the information necessary to output a geometry
 class OutputInfoType {
 public:
-
-  ///Name of the output file
+  /// Name of the output file
   std::string file_name;
-  ///Counter keeping track of the outputs
+  /// Counter keeping track of the outputs
   unsigned int output_counter;
-  ///Counter keeping track of the processes
+  /// Counter keeping track of the processes
   unsigned int process_counter;
-  ///Start simulation time
+  /// Start simulation time
   double start_time;
-  ///End simulation time
+  /// End simulation time
   double end_time;
 
-  ///OutputInfoType constructor - only set file name to begin with "Interface"
-  OutputInfoType() :
-    file_name("Interface"), output_counter(0), process_counter(0),
-        start_time(0), end_time(0) {
-  }
+  /// OutputInfoType constructor - only set file name to begin with "Interface"
+  OutputInfoType()
+      : file_name("Interface"), output_counter(0), process_counter(0),
+        start_time(0), end_time(0) {}
 };
 
 /// Dimension specific main function reading input and starting correct process
-template<int D, class ParameterType2>
-void main_(ParameterType2& p2) {          //TODO changed from const to not const
+template <int D, class ParameterType2>
+void main_(ParameterType2 &p2) { // TODO changed from const to not const
 
-  ParameterDimType<ParameterType2, D> p = p2;    //TODO changed to not const
+  ParameterDimType<ParameterType2, D> p = p2; // TODO changed to not const
 
   GridTraitsType<D> GridProperties;
-  lvlset::grid_type<GridTraitsType<D> > grid;
+  lvlset::grid_type<GridTraitsType<D>> grid;
 
-  //Create the LevelSets - a list of all level set functions
-  typedef lvlset::levelset<GridTraitsType<D> , LevelSetTraitsType> LevelSetType;
+  // Create the LevelSets - a list of all level set functions
+  typedef lvlset::levelset<GridTraitsType<D>, LevelSetTraitsType> LevelSetType;
   typedef std::list<LevelSetType> LevelSetsType;
-  LevelSetsType LevelSets; //list of all level set functions
+  LevelSetsType LevelSets; // list of all level set functions
 
-  //if the first input is a lvst file, then it is assumed all are a lvst files
-  if(p.geometry_files[0].find(".lvst") != std::string::npos){
-    //import levelsets
-    GridProperties = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<D>>(p.geometry_files[0]);
+  // if the first input is a lvst file, then it is assumed all are a lvst files
+  if (p.geometry_files[0].find(".lvst") != std::string::npos) {
+    // import levelsets
+    GridProperties = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<D>>(
+        p.geometry_files[0]);
     grid = lvlset::grid_type<GridTraitsType<D>>(GridProperties);
-    for(unsigned int i=0; i<p.geometry_files.size(); i++){
-      msg::print_start("Read levelset input file " + p.geometry_files[i] + "...");
+    for (unsigned int i = 0; i < p.geometry_files.size(); i++) {
+      msg::print_start("Read levelset input file " + p.geometry_files[i] +
+                       "...");
       LevelSets.push_back(LevelSetType(grid));
       LevelSets.back().import_levelset(p.geometry_files[i]);
       msg::print_done();
     }
-  }
-  else {
-    //read in surfaces or volume and transform them to levelsets
-    if(p.surface_geometry){
-      geometry::import_levelsets_from_surface<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
+  } else {
+    // read in surfaces or volume and transform them to levelsets
+    if (p.surface_geometry) {
+      geometry::import_levelsets_from_surface<D, GridTraitsType<D>,
+                                              ParameterType2, LevelSetType>(
+          GridProperties, grid, p, LevelSets);
     } else {
-      if(p.geometry_files[0].find(".vtp") != std::string::npos){
-        geometry::import_levelsets_from_hull<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
-      }else{
-        geometry::import_levelsets_from_volume<D, GridTraitsType<D>, ParameterType2, LevelSetType>(GridProperties, grid, p, LevelSets);
+      if (p.geometry_files[0].find(".vtp") != std::string::npos) {
+        geometry::import_levelsets_from_hull<D, GridTraitsType<D>,
+                                             ParameterType2, LevelSetType>(
+            GridProperties, grid, p, LevelSets);
+      } else {
+        geometry::import_levelsets_from_volume<D, GridTraitsType<D>,
+                                               ParameterType2, LevelSetType>(
+            GridProperties, grid, p, LevelSets);
       }
     }
   }
 
-
-
-  //output initial LevelSets if print lvst is specified
-  if(p.print_lvst){
+  // output initial LevelSets if print lvst is specified
+  if (p.print_lvst) {
     int LevelsetCounter = 0;
-    for(auto ls: LevelSets){
+    for (auto ls : LevelSets) {
       std::ostringstream oss;
-      oss << p.output_path << "InterfaceInitial" << LevelsetCounter++ << ".lvst";
+      oss << p.output_path << "InterfaceInitial" << LevelsetCounter++
+          << ".lvst";
       ls.export_levelset(oss.str(), p.bits_per_distance);
     }
   }
 
-  if(p.add_layer>0){
+  if (p.add_layer > 0) {
     std::stringstream oss;
-    oss << "Adding " << p.add_layer << " initial layer" << ((p.add_layer==1)?"...":"s...");
+    oss << "Adding " << p.add_layer << " initial layer"
+        << ((p.add_layer == 1) ? "..." : "s...");
     msg::print_start(oss.str());
     proc::AddLayer(LevelSets, p.add_layer);
     msg::print_done();
   }
 
-  //organization of the output information by initiation of required models
+  // organization of the output information by initiation of required models
   OutputInfoType output_info;
 
-  //!Initialize the required models and call "proc::ExecuteProcess(...)"
-  //!    Possible models are: ConstantRates, SimpleDeposition, SF6_O2PlasmaEtching, SiO2_PlasmaEtching,
-  //!    HBr_O2PlasmaEtching, NonlinearDeposition, WetEtching, FIB, CalculateFlux, Planarization, Mask,
-  //!    and BooleanOperation
+  //! Initialize the required models and call "proc::ExecuteProcess(...)"
+  //!    Possible models are: ConstantRates, SimpleDeposition,
+  //!    SF6_O2PlasmaEtching, SiO2_PlasmaEtching, HBr_O2PlasmaEtching,
+  //!    NonlinearDeposition, WetEtching, FIB, CalculateFlux, Planarization,
+  //!    Mask, and BooleanOperation
 
 #ifdef PROCESS_TiO2_ALD
-            std::vector<double> CoveragesALD_TiO2(4*LevelSets.back().num_active_pts(),0.);
+  std::vector<double> CoveragesALD_TiO2(4 * LevelSets.back().num_active_pts(),
+                                        0.);
 #endif
 #ifdef PROCESS_TiN_ALD
-            std::vector<double> CoveragesALD_TiN(12*LevelSets.back().num_active_pts(),0.);
-            for (unsigned int i=0;i<CoveragesALD_TiN.size();i++) CoveragesALD_TiN[i]=(i%12==10)?1.:0.;
+  std::vector<double> CoveragesALD_TiN(12 * LevelSets.back().num_active_pts(),
+                                       0.);
+  for (unsigned int i = 0; i < CoveragesALD_TiN.size(); i++)
+    CoveragesALD_TiN[i] = (i % 12 == 10) ? 1. : 0.;
 #endif
 #ifdef PROCESS_TiN_PEALD
-            std::vector<double> CoveragesPEALD_TiN(12*LevelSets.back().num_active_pts(),0.);
-            for (unsigned int i=0;i<CoveragesPEALD_TiN.size();i++) CoveragesPEALD_TiN[i]=(i%12==10)?1.:0.;
+  std::vector<double> CoveragesPEALD_TiN(12 * LevelSets.back().num_active_pts(),
+                                         0.);
+  for (unsigned int i = 0; i < CoveragesPEALD_TiN.size(); i++)
+    CoveragesPEALD_TiN[i] = (i % 12 == 10) ? 1. : 0.;
 #endif
 
-  for (typename std::list<typename ParameterType2::ProcessParameterType>::iterator
-      pIter = p.process_parameters.begin(); pIter
-      != p.process_parameters.end(); ++pIter) {
+  for (typename std::list<
+           typename ParameterType2::ProcessParameterType>::iterator pIter =
+           p.process_parameters.begin();
+       pIter != p.process_parameters.end(); ++pIter) {
     {
       std::ostringstream oss;
       oss << "Start execution of process \"" + pIter->ModelName + "\""
-          << std::endl << "(processing time = " << pIter->ProcessTime
-          << ")";
+          << std::endl
+          << "(processing time = " << pIter->ProcessTime << ")";
       msg::print_message(oss.str());
     }
     output_info.end_time += pIter->ProcessTime;
 
-    if(pIter->AddLayer>0){
+    if (pIter->AddLayer > 0) {
       std::cout << "Add Layer = " << pIter->AddLayer << "\n";
       proc::AddLayer(LevelSets, pIter->AddLayer);
     }
-
 
 #ifdef PROCESS_CONSTANT_RATES
     if (pIter->ModelName == "ConstantRates") {
@@ -384,15 +394,17 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
 #endif
 
 #ifdef PROCESS_Cl2_N2_ETCHING
-    if(pIter->ModelName == "Cl2_N2Etching"){
-      model::Cl2_N2Etching<typename ParameterType2::ProcessParameterType> m(pIter);
-      proc::ExecuteProcess(LevelSets, m, p,*pIter, output_info);
+    if (pIter->ModelName == "Cl2_N2Etching") {
+      model::Cl2_N2Etching<typename ParameterType2::ProcessParameterType> m(
+          pIter);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_Cl2_CH4_PLASMA_ETCHING
     if (pIter->ModelName == "Cl2_CH4PlasmaEtching") {
-      model::Cl2_CH4PlasmaEtching<typename ParameterType2::ProcessParameterType> m(pIter);
+      model::Cl2_CH4PlasmaEtching<typename ParameterType2::ProcessParameterType>
+          m(pIter);
       proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
@@ -413,13 +425,15 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
 
 #ifdef PROCESS_SF6_CH2F2_PLASMA_ETCHING
     if (pIter->ModelName == "SF6_CH2F2PlasmaEtching") {
-      model::SF6_CH2F2_PlasmaEtching<typename ParameterType2::ProcessParameterType> m(pIter);
+      model::SF6_CH2F2_PlasmaEtching<
+          typename ParameterType2::ProcessParameterType>
+          m(pIter);
       proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_N2_PLASMA_ETCHING
-    if(pIter->ModelName == "N2_Flash"){
+    if (pIter->ModelName == "N2_Flash") {
       model::N2_FLASH m(pIter->ModelParameters);
       proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
@@ -427,7 +441,8 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
 
 #ifdef PROCESS_HBr_O2_PLASMA_ETCHING
     if (pIter->ModelName == "HBr_O2PlasmaEtching") {
-      model::HBr_O2_PlasmaEtching<typename ParameterType2::ProcessParameterType> m(pIter);
+      model::HBr_O2_PlasmaEtching<typename ParameterType2::ProcessParameterType>
+          m(pIter);
       proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
@@ -483,57 +498,65 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
 
 #ifdef PROCESS_CALCULATEFLUX
     if (pIter->ModelName == "CalculateFlux") {
-      model::CalculateFlux<typename ParameterType2::ProcessParameterType> m(pIter, D);
+      model::CalculateFlux<typename ParameterType2::ProcessParameterType> m(
+          pIter, D);
       proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_PLANARIZATION
-    if (pIter->ModelName=="Planarization") {
-        model::Planarization m(pIter->ModelParameters);
-        proc::ExecuteProcess(LevelSets, m, p, *pIter,output_info);
+    if (pIter->ModelName == "Planarization") {
+      model::Planarization m(pIter->ModelParameters);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_MASK
-    if (pIter->ModelName=="Mask") {
-        model::Mask m(pIter->ModelParameters);
-        proc::ExecuteProcess(LevelSets, m, p, *pIter,output_info);
+    if (pIter->ModelName == "Mask") {
+      model::Mask m(pIter->ModelParameters);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_BOOLEANOPS
-    if (pIter->ModelName=="BooleanOperation") {
-        model::BooleanOps m(pIter->ModelParameters);
-        proc::ExecuteProcess(LevelSets, m, p, *pIter,output_info);
+    if (pIter->ModelName == "BooleanOperation") {
+      model::BooleanOps m(pIter->ModelParameters);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info);
     }
 #endif
 
 #ifdef PROCESS_TiN_ALD
     if (pIter->ModelName == "TiN_ALD") {
-                    for (unsigned int i=0;i<CoveragesALD_TiN.size();i++)
-                        if ((i%12==6*(pIter->ALDStep-1))||(i%12==6*(pIter->ALDStep-1)+1)||(i%12==5)||(i%12==11))
-                            CoveragesALD_TiN[i]=0.;
-                    model::TiN_ALD m(pIter->ModelParameters, pIter->ALDStep);
-                    proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info, CoveragesALD_TiN);
-        }
+      for (unsigned int i = 0; i < CoveragesALD_TiN.size(); i++)
+        if ((i % 12 == 6 * (pIter->ALDStep - 1)) ||
+            (i % 12 == 6 * (pIter->ALDStep - 1) + 1) || (i % 12 == 5) ||
+            (i % 12 == 11))
+          CoveragesALD_TiN[i] = 0.;
+      model::TiN_ALD m(pIter->ModelParameters, pIter->ALDStep);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info,
+                           CoveragesALD_TiN);
+    }
 #endif
 
 #ifdef PROCESS_TiN_PEALD
     if (pIter->ModelName == "TiN_PEALD") {
-                    for (unsigned int i=0;i<CoveragesPEALD_TiN.size();i++)
-                        if ((i%12==6*(pIter->ALDStep-1))||(i%12==6*(pIter->ALDStep-1)+1)||(i%12==5)||(i%12==11))
-                            CoveragesPEALD_TiN[i]=0.;
-                    model::TiN_PEALD m(pIter->ModelParameters, pIter->ALDStep);
-                    proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info, CoveragesPEALD_TiN);
-          }
+      for (unsigned int i = 0; i < CoveragesPEALD_TiN.size(); i++)
+        if ((i % 12 == 6 * (pIter->ALDStep - 1)) ||
+            (i % 12 == 6 * (pIter->ALDStep - 1) + 1) || (i % 12 == 5) ||
+            (i % 12 == 11))
+          CoveragesPEALD_TiN[i] = 0.;
+      model::TiN_PEALD m(pIter->ModelParameters, pIter->ALDStep);
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info,
+                           CoveragesPEALD_TiN);
+    }
 #endif
 
 #ifdef PROCESS_TiO2_ALD
     if (pIter->ModelName == "TiO2_ALD") {
       model::TiO2_ALD m(pIter->ModelParameters);
-      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info, CoveragesALD_TiO2);
-          }
+      proc::ExecuteProcess(LevelSets, m, p, *pIter, output_info,
+                           CoveragesALD_TiO2);
+    }
 #endif
 
     output_info.start_time = output_info.end_time;
@@ -543,139 +566,151 @@ void main_(ParameterType2& p2) {          //TODO changed from const to not const
 
 #if not defined(BUILD_WASM)
 /**
-*  Main function: Times the whole program and passes parameters to main_()
-*/
+ *  Main function: Times the whole program and passes parameters to main_()
+ */
 
 int main(int argc, char *argv[]) {
-  if(argc > 1){
-    if(argv[1][0] == '-'){//if option was passed
+  if (argc > 1) {
+    if (argv[1][0] == '-') { // if option was passed
       std::string option(argv[1]);
       std::ostringstream oss;
-      if(option == "-ls2vtk" || option == "-ls2dx"){
-        //assume all remaining argvs are lvst files, convert them to vtk or dx
-        for(int i=2; i<argc; i++){
+      if (option == "-ls2vtk" || option == "-ls2dx") {
+        // assume all remaining argvs are lvst files, convert them to vtk or dx
+        for (int i = 2; i < argc; i++) {
           std::string file(argv[i]);
           char buff[8] = {};
           std::ifstream fin(file);
-          fin.read(buff, 8);//read file header
+          fin.read(buff, 8); // read file header
           fin.close();
-          if(std::string("LvSt").compare(std::string(buff).substr(0,4))) msg::print_error(file + " is not a lvst file.");
-          const int D = buff[6]-48;
+          if (std::string("LvSt").compare(std::string(buff).substr(0, 4)))
+            msg::print_error(file + " is not a lvst file.");
+          const int D = buff[6] - 48;
           oss.str("");
-          oss << file.substr(0, file.find(".lvst")) << (option == "-ls2vtk" ? ".vtk" : ".dx");
+          oss << file.substr(0, file.find(".lvst"))
+              << (option == "-ls2vtk" ? ".vtk" : ".dx");
 
-          msg::print_start("Converting " + file + std::string(" to a ") + std::string((option == "-ls2vtk" ? "vtk" : "dx")) + std::string(" file....")  );
-          if(D == 2){
-            GridTraitsType<2> gridP = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<2>>(file);
+          msg::print_start("Converting " + file + std::string(" to a ") +
+                           std::string((option == "-ls2vtk" ? "vtk" : "dx")) +
+                           std::string(" file...."));
+          if (D == 2) {
+            GridTraitsType<2> gridP =
+                lvlset::get_grid_traits_from_lvst_file<GridTraitsType<2>>(file);
             lvlset::grid_type<GridTraitsType<2>> grid(gridP);
             lvlset::levelset<GridTraitsType<2>> ls(grid);
             ls.import_levelset(file);
-            if(option == "-ls2vtk") write_explicit_surface_vtk(ls, oss.str());
-            else if(option == "-ls2dx") write_explicit_surface_opendx(ls, oss.str());
-          }
-          else if(D == 3){
-            GridTraitsType<3> gridP = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<3>>(file);
+            if (option == "-ls2vtk")
+              write_explicit_surface_vtk(ls, oss.str());
+            else if (option == "-ls2dx")
+              write_explicit_surface_opendx(ls, oss.str());
+          } else if (D == 3) {
+            GridTraitsType<3> gridP =
+                lvlset::get_grid_traits_from_lvst_file<GridTraitsType<3>>(file);
             lvlset::grid_type<GridTraitsType<3>> grid(gridP);
             lvlset::levelset<GridTraitsType<3>> ls(grid);
             ls.import_levelset(file);
-            if(option == "-ls2vtk") write_explicit_surface_vtk(ls, oss.str());
-            else if(option == "-ls2dx") write_explicit_surface_opendx(ls, oss.str());
+            if (option == "-ls2vtk")
+              write_explicit_surface_vtk(ls, oss.str());
+            else if (option == "-ls2dx")
+              write_explicit_surface_opendx(ls, oss.str());
           }
           msg::print_done();
         }
-      }
-      else if(option == "-p" || option == "-p2o"){
-        for(int i=2; i<argc; i++){
+      } else if (option == "-p" || option == "-p2o") {
+        for (int i = 2; i < argc; i++) {
           std::string file(argv[i]);
           char buff[8] = {};
           std::ifstream fin(file);
-          fin.read(buff, 8);//read file header
+          fin.read(buff, 8); // read file header
           fin.close();
-          if(std::string("LvSt").compare(std::string(buff).substr(0,4))) msg::print_error(file + " is not a lvst file.");
-          const int D = buff[6]-48;
+          if (std::string("LvSt").compare(std::string(buff).substr(0, 4)))
+            msg::print_error(file + " is not a lvst file.");
+          const int D = buff[6] - 48;
           std::ofstream fout;
-          if(option == "-p2o"){
+          if (option == "-p2o") {
             oss.str("");
             oss << file.substr(0, file.find(".lvst")) << ".txt";
             fout = std::ofstream(oss.str());
             msg::print_start("Converting " + file + " to a txt file...");
           }
 
-          if(D == 2){
-            GridTraitsType<2> gridP = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<2>>(file);
+          if (D == 2) {
+            GridTraitsType<2> gridP =
+                lvlset::get_grid_traits_from_lvst_file<GridTraitsType<2>>(file);
             lvlset::grid_type<GridTraitsType<2>> grid(gridP);
             lvlset::levelset<GridTraitsType<2>> ls(grid);
             ls.import_levelset(file);
-            if(option == "-p2o") ls.print_without_segmentation(fout);
-            else if(option == "-p") ls.print_without_segmentation();
-          }
-          else if(D == 3){
-            GridTraitsType<3> gridP = lvlset::get_grid_traits_from_lvst_file<GridTraitsType<3>>(file);
+            if (option == "-p2o")
+              ls.print_without_segmentation(fout);
+            else if (option == "-p")
+              ls.print_without_segmentation();
+          } else if (D == 3) {
+            GridTraitsType<3> gridP =
+                lvlset::get_grid_traits_from_lvst_file<GridTraitsType<3>>(file);
             lvlset::grid_type<GridTraitsType<3>> grid(gridP);
             lvlset::levelset<GridTraitsType<3>> ls(grid);
             ls.import_levelset(file);
-            if(option == "-p2o") ls.print_without_segmentation(fout);
-            else if(option == "-p") ls.print_without_segmentation();
+            if (option == "-p2o")
+              ls.print_without_segmentation(fout);
+            else if (option == "-p")
+              ls.print_without_segmentation();
           }
-          if(option == "-p2o"){
+          if (option == "-p2o") {
             fout.close();
             msg::print_done();
           }
         }
-      }
-      else if(option == "-h"){
+      } else if (option == "-h") {
         msg::print_help();
-      }
-      else if(option == "--help"){
+      } else if (option == "--help") {
         msg::print_help_extended();
-      }
-      else if(option == "--version"){
+      } else if (option == "--version") {
         msg::print_version();
-      }
-      else {
-        oss << argv[1] << " is not an available option.\nSee --help for more information.";
+      } else {
+        oss << argv[1]
+            << " is not an available option.\nSee --help for more information.";
         msg::print_message_2(oss.str());
       }
-    }
-    else{
+    } else {
       double timer = my::time::GetTime();
 
       msg::print_welcome();
 
-      //check intrinsic double-type
+      // check intrinsic double-type
       assert(std::numeric_limits<double>::is_iec559);
 
-      //!Read Parameters-File and populate Parameters class
+      //! Read Parameters-File and populate Parameters class
       client::Parameters p(argv[1]);
 
-      //!Set maximum number of threads
-      #ifdef _OPENMP
-        if (p.omp_threads>0) omp_set_num_threads(p.omp_threads);
-      #endif
+//! Set maximum number of threads
+#ifdef _OPENMP
+      if (p.omp_threads > 0)
+        omp_set_num_threads(p.omp_threads);
+#endif
 
-      //!Initialize number of dimensions and execute main_(const ParameterType2) accordingly
-      #ifdef DIMENSION_2
-        if (p.num_dimensions == 2)
-          main_<2, client::Parameters> (p);
-      #endif
+//! Initialize number of dimensions and execute main_(const ParameterType2)
+//! accordingly
+#ifdef DIMENSION_2
+      if (p.num_dimensions == 2)
+        main_<2, client::Parameters>(p);
+#endif
 
-      #ifdef DIMENSION_3
-        if (p.num_dimensions == 3)
-          main_<3, client::Parameters> (p);
-      #endif
+#ifdef DIMENSION_3
+      if (p.num_dimensions == 3)
+        main_<3, client::Parameters>(p);
+#endif
 
-      double exec_time = my::time::GetTime()-timer;
+      double exec_time = my::time::GetTime() - timer;
       std::stringstream ss;
       ss << exec_time;
-      msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
+      msg::print_message_2("Finished - exec-time: " + ss.str() + " s");
     }
-  }
-  else{
-    std::cout << "No option or parameter file passed.\nSee -h or --help for more information." << std::endl;
+  } else {
+    std::cout << "No option or parameter file passed.\nSee -h or --help for "
+                 "more information."
+              << std::endl;
   }
 
   return 0;
-
 }
 #endif // #if not defined(BUILD_WASM)
 
@@ -691,90 +726,218 @@ int myrun() {
   std::cout << "myrun()" << std::endl;
   std::cout << "myrun()" << std::endl;
 
-
   double timer = my::time::GetTime();
 
   msg::print_welcome();
 
-  //check intrinsic double-type
+  // check intrinsic double-type
   assert(std::numeric_limits<double>::is_iec559);
 
-  //!Read Parameters-File and populate Parameters class
+  //! Read Parameters-File and populate Parameters class
   client::Parameters p("assets/parwasm.txt");
 
-  //!Set maximum number of threads
-  #if defined(_OPENMP)
-    if (p.omp_threads>0) omp_set_num_threads(p.omp_threads);
-  #endif
+//! Set maximum number of threads
+#if defined(_OPENMP)
+  if (p.omp_threads > 0)
+    omp_set_num_threads(p.omp_threads);
+#endif
 
-  //!Initialize number of dimensions and execute main_(const ParameterType2) accordingly
-  #ifdef DIMENSION_2
-    if (p.num_dimensions == 2)
-      main_<2, client::Parameters> (p);
-  #endif
+//! Initialize number of dimensions and execute main_(const ParameterType2)
+//! accordingly
+#ifdef DIMENSION_2
+  if (p.num_dimensions == 2)
+    main_<2, client::Parameters>(p);
+#endif
 
-  #ifdef DIMENSION_3
-    if (p.num_dimensions == 3)
-      main_<3, client::Parameters> (p);
-  #endif
-
-  double exec_time = my::time::GetTime()-timer;
+#ifdef DIMENSION_3
+  if (p.num_dimensions == 3)
+    main_<3, client::Parameters>(p);
+#endif
+ 
+  double exec_time = my::time::GetTime() - timer;
   std::stringstream ss;
   ss << exec_time;
-  msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
+  msg::print_message_2("Finished - exec-time: " + ss.str() + " s");
   wasm::vtswasm::SimulationReady(exec_time);
 
   return 0;
-
 }
 
-int runfile(const std::string filename) {
+// static tbb::task_scheduler_init
+// tbb_TaskSched(tbb::task_scheduler_init::deferred);
+
+
+int runfile(const std::string filename, int numtbbthreads) {
   // std::string filename = "assets/parwasm.txt";
+  // const std::string filename = "deposition3D.txt";
   std::cout << "runfile(" << filename << ")" << std::endl;
 
   double timer = my::time::GetTime();
 
   msg::print_welcome();
 
-  //check intrinsic double-type
+  // check intrinsic double-type
   assert(std::numeric_limits<double>::is_iec559);
 
-  //!Read Parameters-File and populate Parameters class
+  //! Read Parameters-File and populate Parameters class
   client::Parameters p(filename);
-  std::cout << "runfile2"<<  std::endl;
-  //!Set maximum number of threads
-  #if defined(_OPENMP)
-    if (p.omp_threads>0) omp_set_num_threads(p.omp_threads);
-  #endif
+  std::cout << "runfile2" << std::endl;
+//! Set maximum number of threads
+#if defined(_OPENMP)
+  if (p.omp_threads > 0)
+    omp_set_num_threads(p.omp_threads);
+#endif
+#if defined _TBB && defined _WASM
+  p.omp_threads = numtbbthreads;
+  tbb::task_scheduler_init sched(numtbbthreads);
+  // std::cout << " tbb::task_scheduler_init::default_num_threads();="<<
+  // tbb::task_scheduler_init::default_num_threads() <<  std::endl;
+  // tbb::task_scheduler_init sched(numtbbthreads);
 
-  //!Initialize number of dimensions and execute main_(const ParameterType2) accordingly
-  #ifdef DIMENSION_2
-    if (p.num_dimensions == 2)
-      main_<2, client::Parameters> (p);
-  #endif
+  // if
+  // tbb_TaskSched.initialize(numtbbthreads);
+#endif
 
-  #ifdef DIMENSION_3
-    if (p.num_dimensions == 3)
-      main_<3, client::Parameters> (p);
-  #endif
+//! Initialize number of dimensions and execute main_(const ParameterType2)
+//! accordingly
+#ifdef DIMENSION_2
+  if (p.num_dimensions == 2)
+    main_<2, client::Parameters>(p);
+#endif
 
-  double exec_time = my::time::GetTime()-timer;
+#ifdef DIMENSION_3
+  if (p.num_dimensions == 3)
+    main_<3, client::Parameters>(p);
+#endif
+
+  double exec_time = my::time::GetTime() - timer;
   std::stringstream ss;
   ss << exec_time;
-  msg::print_message_2("Finished - exec-time: "+ss.str()+" s");
+  msg::print_message_2("Finished - exec-time: " + ss.str() + " s");
 
   wasm::vtswasm::SimulationReady(exec_time);
 
-  lvlset::top_levelset_id=0;
+  lvlset::top_levelset_id = 0;
 
   return 0;
+}
 
+// int main()
+// {
+//     runfile("deposition3D.txt",1);
+//   return 0;
+// }
+
+#ifdef _TBB
+int init(int numtbbthreads) {
+  // sched = new tbb::task_scheduler_init(numtbbthreads);
+  return 4;
+}
+
+int warmup(int numtbbthreads) {
+
+  tbb::task_scheduler_init sched(numtbbthreads);
+
+  // tbb::task_arena limited(arenasize);
+
+  // tbb::task_group tg;
+
+  std::vector<int> dummyval(numtbbthreads,0);
+  std::vector<int> threadids(numtbbthreads,0);
+  auto dummytask = [&dummyval,&threadids](const tbb::blocked_range<int> &range) -> void {
+    for (int n = range.begin(); n != range.end(); ++n) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      // std::cout << "range[n]=" << n << std::endl;
+      dummyval[n] = n;
+       threadids[n] = tbb::this_task_arena::current_thread_index();
+      // std::cout << "this_task_arena::current_thread_index()"<<tbb::this_task_arena::current_thread_index()<<  std::endl;
+    }
+  };
+
+  // limited.execute([&] { // Use at most 2 threads for this job.
+  //   tg.run([&] {         // run in task group
+  //     tbb::parallel_for(tbb::blocked_range<int>(0, numtbbthreads, 1), dummytask,
+  //                       tbb::simple_partitioner());
+  //   });
+  // });
+
+  // limited.execute([&]{ tg.wait(); });
+
+  tbb::parallel_for(tbb::blocked_range<int>(0, numtbbthreads, 8), dummytask,
+                    tbb::static_partitioner());
+
+  std::cout << "dummyvals:" << std::endl;
+  for (auto i : dummyval)
+    std::cout << "dummyvals[i]=" << i << " threadids[i]=" << threadids[i]<< std::endl;
+  return 5;
+}
+
+int warmupProxy(int numtbbthreads) {
+  // tbb::task_scheduler_init sched(numtbbthreads);
+
+  // dummy warmup using maxmum num thread directly from main thread
+
+  // pthread_t t1;
+
+  std::thread t1(&warmup, numtbbthreads);
+  // pthread_create(&t1, NULL, &runfile, (void *)&numtbbthreads );
+
+  // void* result;
+  // pthread_join(t1,&result);
+  // pthread_detach(t1);
+  t1.detach();
+  return 0;
 }
 
 
-std::string getOutputFilename() {
-  return "some/path/to/a/file.vtk";
+int runfileProxy(const std::string filename, int numtbbthreads) {
+  // tbb::task_scheduler_init sched(numtbbthreads);
+  
+ std::cout << "runfileProxy(" << filename << ")" << std::endl;
+
+  // dummy warmup using maxmum num thread directly from main thread
+
+  // pthread_t t1;
+
+  std::thread t1(&runfile, filename, numtbbthreads);
+  // pthread_create(&t1, NULL, &runfile, (void *)&numtbbthreads );
+
+  // void* result;
+  // pthread_join(t1,&result);
+  // pthread_detach(t1);
+  t1.detach();
+  return 0;
 }
+
+EMSCRIPTEN_BINDINGS(viennatswasm) {
+  emscripten::function("myrun", &myrun);
+  emscripten::function("warmup", &warmup);
+    emscripten::function("warmupProxy", &warmupProxy);
+  emscripten::function("init", &init);
+  emscripten::function("runfile", &runfile);
+  emscripten::function("runfileProxy", &runfileProxy);
+  // emscripten::function("getOutputFilename", &getOutputFilename);
+  // emscripten::function("cbTest", &cbTest);
+  // emscripten::function("cbTestInt", &cbTestInt);
+  // emscripten::function("cbTestString", &cbTestString);
+
+  emscripten::class_<wasm::vtswasm>("vtswasm").class_function(
+      "SetCallback", &wasm::vtswasm::SetCallback);
+}
+#else
+EMSCRIPTEN_BINDINGS(viennatswasm) {
+  emscripten::function("runfile", &runfile);
+
+  // emscripten::function("getOutputFilename", &getOutputFilename);
+  // emscripten::function("cbTest", &cbTest);
+  // emscripten::function("cbTestInt", &cbTestInt);
+  // emscripten::function("cbTestString", &cbTestString);
+
+  emscripten::class_<wasm::vtswasm>("vtswasm").class_function(
+      "SetCallback", &wasm::vtswasm::SetCallback);
+}
+#endif _TBB
+std::string getOutputFilename() { return "some/path/to/a/file.vtk"; }
 
 // https://stackoverflow.com/questions/12358877/passing-js-function-to-emscripten-generated-code
 // void cbTest(emscripten::val cb)
@@ -792,19 +955,7 @@ std::string getOutputFilename() {
 //     cb(str);
 // }
 
+// emscripten::function("runfile", &runfile);
 
-    // emscripten::function("runfile", &runfile);
 
-EMSCRIPTEN_BINDINGS(viennatswasm) {
-    emscripten::function("myrun", &myrun);
-    emscripten::function("runfile", &runfile);
-    // emscripten::function("getOutputFilename", &getOutputFilename);
-    // emscripten::function("cbTest", &cbTest);
-    // emscripten::function("cbTestInt", &cbTestInt);
-    // emscripten::function("cbTestString", &cbTestString);
-
-    emscripten::class_<wasm::vtswasm>("vtswasm")
-    .class_function("SetCallback", &wasm::vtswasm::SetCallback)
-    ;
-}
 #endif

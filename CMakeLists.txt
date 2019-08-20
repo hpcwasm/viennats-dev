@@ -7,13 +7,20 @@ cmake_minimum_required(VERSION 3.4)
 # WebAssembly Config for emscripten
 ###############
 set(BUILD_WASM false CACHE BOOL "build webassembly")
+set(BUILD_WASM_STANDALONE true CACHE BOOL "build webassembly standalone")
 set(BUILD_TBB false CACHE BOOL "build tbb, no omp")
 
+
+
 IF(BUILD_WASM)
-  set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
-  set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_INCLUDE_DIR_BOOST}")
+  # set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
+  # set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_INCLUDE_DIR_BOOST}")
   set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_CONFIG_DIR_VTK}")  
+  set(WASM_ROOT "/home/manstetten/github_wasm")
   add_definitions(-DBUILD_WASM)
+  add_definitions(-D_WASM)
+ELSE(BUILD_WASM)
+  set(CMAKE_CXX_COMPILER clang++ CACHE STRING "c++ compiler" FORCE)
 ENDIF(BUILD_WASM) 
 
 
@@ -40,9 +47,9 @@ OPTION(VIENNATS_STATIC_BUILD "" OFF)
 #################
 # disable-new-dtags is necessary for ld > 2.27
 IF(NOT BUILD_WASM)
-  SET(CMAKE_CXX_FLAGS "-Wall  -fmax-errors=5  -Wl,--disable-new-dtags")
+  SET(CMAKE_CXX_FLAGS "-Wall ")
 ELSE(NOT BUILD_WASM)
-  SET(CMAKE_CXX_FLAGS "-Wall -fmax-errors=5")
+  SET(CMAKE_CXX_FLAGS "-Wall ")
 ENDIF(NOT BUILD_WASM) 
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 ")
@@ -96,11 +103,11 @@ IF(NOT BUILD_WASM)
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fmax-errors=2")
   endif()  
 
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
+  # SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
   ELSE(NOT BUILD_TBB)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-unknown-pragmas")
-    set(TBB_BIN_DIR "/home/manstetten/github_hpcwasm/tbb/build/linux_intel64_gcc_cc7.3.0_libc2.27_kernel4.15.0_release")
-    set(TBB_INC_DIR "/home/manstetten/github_hpcwasm/tbb")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-unknown-pragmas")
+    set(TBB_BIN_DIR "${WASM_ROOT}/tbb/build/linux_intel64_gcc_cc7.3.0_libc2.27_kernel4.15.0_release")
+    set(TBB_INC_DIR "${WASM_ROOT}/tbb/include")
     set(TBB_LIBRARIES "tbb")
     ADD_DEFINITIONS ( -pthread)
     INCLUDE_DIRECTORIES(${TBB_INC_DIR})
@@ -109,11 +116,31 @@ IF(NOT BUILD_WASM)
     remove_definitions(-D_OPENMP)
   ENDIF(NOT BUILD_TBB)
 
+
+
 ELSE(NOT BUILD_WASM)
   # no openmp
   remove_definitions(-D_OPENMP)
+  IF(BUILD_TBB)
+    set(TBB_INC_DIR "${WASM_ROOT}/tbb/include")
+    set(TBB_OBJ_DIR "${WASM_ROOT}/tbb/build/linux_wasm32_emscripten_emscripten_wasm32_release/")
+    # set(Tbb_TBB_LIBRARY "/home/manstetten/github_hpcwasm/wasmtbb/tbb/build/linux_wasm32_emscripten_emscripten_wasm32_release/libtbb.a")
+    add_definitions(-D_TBB)
+    add_definitions(-D__wasm32__) 
+    add_definitions(-D__emscripten__) 
+    add_definitions(-D__TBB_DYNAMIC_LOAD_ENABLED=0) 
+    add_definitions(-D__TBB_SOURCE_DIRECTLY_INCLUDED=1) 
+    ADD_DEFINITIONS ( -pthread)
+    INCLUDE_DIRECTORIES(${TBB_INC_DIR})
+    FILE(GLOB_RECURSE TBB_OBJECTS ${TBB_OBJ_DIR}*.o)  
+    message("TBB_OBJECTS=" ${TBB_OBJECTS})
+    message("TBB_OBJ_DIR=" ${TBB_OBJ_DIR})    
+  ENDIF(BUILD_TBB)
 ENDIF(NOT BUILD_WASM) 
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-inconsistent-missing-override")
+
+# set(CMAKE_STATIC_LIBRARY_SUFFIX ".bc")
 
 # disable-new-dtags sets RPATH which searches for libs recursively, instead of RUNPATH which does not
 
@@ -126,9 +153,20 @@ IF(NOT BUILD_WASM)
   LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 ELSE(NOT BUILD_WASM)
   message(STATUS "WASM_BOOST")
-  set(Boost_LIBRARIES "-lboost_system -lboost_filesystem")
-  INCLUDE_DIRECTORIES(${WASM_BOOST_INCLUDE_DIR})
-  LINK_DIRECTORIES(${WASM_BOOST_LIB_DIR})
+  set(BOOST_INC_DIR "${WASM_ROOT}/boost")
+  # set(Boost_LIBRARIES "${WASM_BOOST_LIB_DIR}/boost_filesystem.bc;${WASM_BOOST_LIB_DIR}/boost_system.bc")
+  IF(BUILD_TBB)
+    set(BOOST_OBJ_DIR_FILESYSTEM "${WASM_ROOT}/boost/buildwasmtbb/boost/bin.v2/libs/filesystem/build/clang-linux-emscripten/release/link-static/threading-multi/visibility-hidden/")
+    set(BOOST_OBJ_DIR_SYSTEM "${WASM_ROOT}/boost/buildwasmtbb/boost/bin.v2/libs/system/build/clang-linux-emscripten/release/link-static/threading-multi/visibility-hidden/")  
+  ELSE(BUILD_TBB)
+    set(BOOST_OBJ_DIR_FILESYSTEM "${WASM_ROOT}/boost/buildwasm/boost/bin.v2/libs/filesystem/build/clang-linux-emscripten/release/link-static/visibility-hidden/")
+    set(BOOST_OBJ_DIR_SYSTEM "${WASM_ROOT}/boost/buildwasm/boost/bin.v2/libs/system/build/clang-linux-emscripten/release/link-static/visibility-hidden/")  
+  ENDIF(BUILD_TBB)
+  FILE(GLOB_RECURSE BOOST_OBJECTS_FILESYSTEM ${BOOST_OBJ_DIR_FILESYSTEM}*.o)    
+  FILE(GLOB_RECURSE BOOST_OBJECTS_SYSTEM ${BOOST_OBJ_DIR_SYSTEM}*.o)   
+  message("BOOST_OBJECTS_FILESYSTEM=" ${BOOST_OBJECTS_FILESYSTEM})
+  message("BOOST_OBJECTS_SYSTEM=" ${BOOST_OBJECTS_SYSTEM})     
+  INCLUDE_DIRECTORIES(${BOOST_INC_DIR})
 ENDIF(NOT BUILD_WASM) 
 
 # HDF5
@@ -159,7 +197,7 @@ IF(NOT BUILD_WASM)
     # set(VTK_DIR $ENV{VTK_DIR})
   ENDIF(VIENNATS_STATIC_BUILD)  
 ELSE(NOT BUILD_WASM)
-  set(VTK_DIR ${WASM_VTK_CMAKE_DIR})
+  set(VTK_DIR "${WASM_ROOT}/vtk/install/lib/cmake/vtk-8.1")
 ENDIF(NOT BUILD_WASM) 
 
 
@@ -171,7 +209,22 @@ IF(VTK_FOUND)
   message(STATUS "VTK found (include: ${VTK_INCLUDE_DIRS}, lib: ${VTK_LIBRARY_DIRS})")
   include(${VTK_USE_FILE})
   #only link necessary VTK libraries
-  set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML;vtkFiltersParallel)
+  IF(NOT BUILD_WASM)
+    set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML;vtkFiltersParallel;vtkFiltersParallelDIY2)
+  ELSE()
+    # problem with vtkFiltersParallel, so remove it, seems to be not used
+    # set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML)
+    set(VTK_INC_DIR "${WASM_ROOT}/vtk/install/include/vtk-8.1")
+    IF(BUILD_TBB)    
+      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/buildwasmtbb/")
+    ELSE(BUILD_TBB)   
+      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/buildwasm/") 
+    ENDIF(BUILD_TBB)
+    INCLUDE_DIRECTORIES(${VTK_INC_DIR})
+    FILE(GLOB_RECURSE VTK_OBJECTS ${VTK_OBJ_DIR}*.o)  
+    message("VTK_OBJ_DIR=" ${VTK_OBJ_DIR})
+    message("VTK_OBJECTS=" ${VTK_OBJECTS})
+  ENDIF()
   message(STATUS "Including following VTK Libraries: ${VTK_LIBRARIES}")
   IF(VIENNATS_STATIC_BUILD)
     message(STATUS "BUILDING STATIC BINARY")
@@ -202,55 +255,64 @@ set(viennaTS "viennats")
 IF(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp)
 ELSE(NOT BUILD_WASM)
-  ADD_EXECUTABLE(${viennaTS} src/viennats.cpp wasm/vtswasm.cpp)
+  ADD_EXECUTABLE(${viennaTS} src/viennats.cpp wasm/vtswasm.cpp ${TBB_OBJECTS} ${VTK_OBJECTS} ${BOOST_OBJECTS_FILESYSTEM} ${BOOST_OBJECTS_SYSTEM})
   # copy files to assets folder
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/callbacks.js ${CMAKE_CURRENT_BINARY_DIR}/callbacks.js COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/vtsworker.js ${CMAKE_CURRENT_BINARY_DIR}/vtsworker.js COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/bootstrap.js ${CMAKE_CURRENT_BINARY_DIR}/bootstrap.js COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/main.html ${CMAKE_CURRENT_BINARY_DIR}/main.html  COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/SimpleHTTPServer.py ${CMAKE_CURRENT_BINARY_DIR}/SimpleHTTPServer.py COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/example/3d_hole.vtk ${CMAKE_CURRENT_BINARY_DIR}/assets/3d_hole.vtk COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/example/deposition3D.txt ${CMAKE_CURRENT_BINARY_DIR}/assets/deposition3D.txt COPYONLY)                                
 
-  add_custom_command(TARGET ${viennaTS} PRE_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_CURRENT_LIST_DIR}/assets-wasm $<TARGET_FILE_DIR:${viennaTS}>/assets)
-
-  add_custom_command(TARGET ${viennaTS} PRE_BUILD
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory
-                       ${CMAKE_CURRENT_LIST_DIR}/js $<TARGET_FILE_DIR:${viennaTS}>)                                         
-
-  set(WASM_SUFFIX ".js")
-
-  # 1gb = 1073741824, 1gb-1*64kb = 1073676288, 1gb-100*64kb = 1067188224
-  # 256mb = 1073741824, 1gb-1*64kb = 1073676288, 1gb-100*64kb = 1067188224
-  # further emscripten options: -s DEMANGLE_SUPPORT=1 -s ASSERTIONS=1 
-  # 265814016 ~= 256mb
-  # 265814016 ~= 256mb
-  # 536870912 = 1024*1024*512
-  # 33226752 = 32mb
-
-  # 2gb-10*64kb = 2*1024**3-10*256**2 = 2146828288
-  # -s ALLOW_MEMORY_GROWTH=1 \
-  # -s DISABLE_EXCEPTION_CATCHING=1 \
-  # more info on linker flags: /home/manstetten/ProgramsDev/hpcwasm/emsdk/emscripten/1.38.29/src/settings.js
-  # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/geometry2.dx@/geometry2.dx \
-  # --embed-file ${CMAKE_CURRENT_BINARY_DIR}/assets/parwasm.txt@/parwasm.txt \
-  # --preload-file ${CMAKE_CURRENT_BINARY_DIR}/assets@/assets \
-  #-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
   message("using WASM")
+  IF(BUILD_WASM_STANDALONE)
+    set(WASM_SUFFIX ".html")
+  ELSE(BUILD_WASM_STANDALONE)
+    set(WASM_SUFFIX ".js")
+  ENDIF(BUILD_WASM_STANDALONE)
+
+  #     -s LOAD_SOURCE_MAP=1 -g4 \
+  # -fsanitize=undefined -fsanitize-minimal-runtime \
+  # -s DEFAULT_PTHREAD_STACK_SIZE=8388608 \
+  # -s BINARYEN_EXTRA_PASSES=\"--disable-bulk-memory\" 
+  # 536870912, 268435456, 134217728
+  set(OLEVEL "2")
+  IF(BUILD_TBB)
+  set(USE_PTHREADS "1")
+  set(WORKER_POOL "-s PTHREAD_POOL_SIZE=0")
+  ELSE(BUILD_TBB)
+  set(USE_PTHREADS "0")
+  ENDIF(BUILD_TBB)
+  
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
-  LINK_FLAGS " --bind -v \
-  -s WASM=1 \
-  -s ALLOW_MEMORY_GROWTH=0 \
-  -s TOTAL_MEMORY=536870912 \
-  -s WASM_MEM_MAX=536870912")  
+  COMPILE_FLAGS "-s TOTAL_MEMORY=536870912 --bind -v -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
+  --embed-file assets/deposition3D.txt@/deposition3D.txt"
+  LINK_FLAGS "-s TOTAL_MEMORY=536870912  --bind -v -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
+  --embed-file assets/deposition3D.txt@/deposition3D.txt" ) 
+
+
 ENDIF(NOT BUILD_WASM) 
 
+message("Boost_LIBRARIES=" ${Boost_LIBRARIES})
+IF(NOT BUILD_WASM) 
 IF(VIENNATS_STATIC_BUILD)
-  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES} "-static")
-ELSE()
-  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES} ${Boost_LIBRARIES} ${VTK_LIBRARIES} ${TBB_LIBRARIES})
+  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES}  ${VTK_LIBRARIES}  ${TBB_LIBRARIES} ${Boost_LIBRARIES} "-static")
+ELSE(VIENNATS_STATIC_BUILD)
+  TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES}  ${VTK_LIBRARIES}   ${TBB_LIBRARIES} ${Boost_LIBRARIES})
 ENDIF(VIENNATS_STATIC_BUILD)
-
+ENDIF(NOT BUILD_WASM) 
 
 ## install targets
 IF(BUILD_WASM)
   INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.js" DESTINATION "${CMAKE_INSTALL_PREFIX}")
   INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.wasm" DESTINATION "${CMAKE_INSTALL_PREFIX}") 
+  IF(BUILD_TBB)
+    INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.js.mem" DESTINATION "${CMAKE_INSTALL_PREFIX}") 
+    INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/viennats.worker.js" DESTINATION "${CMAKE_INSTALL_PREFIX}") 
+  ENDIF(BUILD_TBB)  
 ENDIF(BUILD_WASM)

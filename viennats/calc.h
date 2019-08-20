@@ -36,12 +36,15 @@
 #include <cmath>
 
 #ifdef _TBB
-#include "tbb/blocked_range.h"
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/tbb_thread.h"
+#include <tbb/blocked_range.h>
+#include <tbb/enumerable_thread_specific.h>
+#include <tbb/tbb_thread.h>
 #include <tbb/combinable.h>
 #include <tbb/parallel_for.h>
 #include <tbb/task_scheduler_init.h>
+#include <tbb/task_arena.h>
+#include <thread>
+// #undef _TBB
 #endif
 
 /// Namespace for calculation helpers.
@@ -442,11 +445,11 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
                     const std::vector<unsigned int> &PointMaterials,
                     const geom::cells<ParameterType::Dimension> &Cells,
                     double ProcessTime) {
-  std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name()
-            << std::endl;
-  std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name()
-            << std::endl;
-  std::cout << "ProcessTime=" << ProcessTime << std::endl;
+//   std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name()
+//             << std::endl;
+//   std::cout << "CalculateRates, typeid(Partition)=" << typeid(Partition).name()
+//             << std::endl;
+//   std::cout << "ProcessTime=" << ProcessTime << std::endl;
 
   //      std::cout << "1\n";
   const int D = ParameterType::Dimension;
@@ -461,27 +464,31 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
   // Initialize Rates
   unsigned int num_active_points = SurfaceLevelSet.num_active_pts();
   Rates.clear();
-  if (NormalVectors.size() != num_active_points * D) {
-    std::cout << "Assert normal vector size: " << NormalVectors.size() << " = "
-              << num_active_points * D << "\n";
-    assert(0);
-  }
-  if (Coverages.size() < num_active_points * Model.CoverageStorageSize) {
-    std::cout << "Assert Coverage size: " << Coverages.size()
-              << " >= " << num_active_points * Model.CoverageStorageSize
-              << "\n";
-    assert(0);
-  }
+//   if (NormalVectors.size() != num_active_points * D) {
+//     std::cout << "Assert normal vector size: " << NormalVectors.size() << " = "
+//               << num_active_points * D << "\n";
+//     assert(0);
+//   }
+//   if (Coverages.size() < num_active_points * Model.CoverageStorageSize) {
+//     std::cout << "Assert Coverage size: " << Coverages.size()
+//               << " >= " << num_active_points * Model.CoverageStorageSize
+//               << "\n";
+//     assert(0);
+//   }
 
 #ifdef _OPENMP
   const int max_threads = omp_get_max_threads();
+#elif defined _TBB
+  // const int max_threads = Parameter.omp_threads;
 #else
   const int max_threads = 1;
 #endif
 
+#if not defined _TBB
   std::vector<std::vector<double>> all_tmp_Rates(
       max_threads,
       std::vector<double>(num_active_points * Model.RatesStorageSize, 0.));
+#endif
 
   double RecepterArea = (D == 3) ? (Parameter.receptor_radius *
                                     Parameter.receptor_radius * my::math::Pi)
@@ -501,21 +508,19 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
     // equal to the open surface area measured in grid spacings in case of
     // non-equally distributed flux the number of starting places is set to the
     // number of threads
-
 #ifdef _OPENMP
     const int my_num_threads = omp_get_num_threads();
     const int my_thread_num = omp_get_thread_num();
-#elif _TBB
+#elif defined _TBB
     const int my_num_threads = Parameter.omp_threads;
-    tbb::task_scheduler_init sched(my_num_threads);
+    // std::cout << "================= my_num_threads TBB=" << my_num_threads
+            //   << std::endl;
 
-    typedef tbb::enumerable_thread_specific<int> TbbETSInt;
-    int threadcounter= 0;
-    auto init_thread_id = [&threadcounter]() -> int {
-      return threadcounter++;
-    };
-    TbbETSInt my_thread_nums(init_thread_id);
-    const int my_thread_num = 0; // dummy
+    // typedef tbb::enumerable_thread_specific<int> TbbETSInt;
+    // int threadcounter = 0;
+    // auto init_thread_id = [&threadcounter]() -> int { return threadcounter++; };
+    // TbbETSInt my_thread_nums(init_thread_id);
+    // const int my_thread_num = 0; // dummy
 #else
     const int my_num_threads = 1;
     const int my_thread_num = 0;
@@ -527,6 +532,8 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
             : // AXIS
             my_num_threads;
 
+
+#ifndef _TBB
     // for each thread a vector is defined, where the rates are stored
     std::vector<double> &tmp_Rates = all_tmp_Rates[my_thread_num];
 
@@ -538,26 +545,29 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
     std::stack<ClusterPositionType> ParticlePositionsStack;
 
 // beginning of parallel section with dynamic scheduling
-#ifdef _OPENMP
+
 #pragma omp for schedule(dynamic)
     // Chunks are dynamically assigned to threads on a first-come,
     // first-serve basis as threads become available.
     for (int StartingPlace = 0; StartingPlace < NumStartingPlaces;
          ++StartingPlace) { // for each starting place do
-#elif _TBB
-
+#else
     // create TLS for rates
     typedef tbb::combinable<std::vector<double>> TbbCombinable;
     TbbCombinable all_tbb_Rates(
         std::vector<double>(num_active_points * Model.RatesStorageSize, 0.));
+
+    std::vector<int>NumStartingPlacesTID(NumStartingPlaces,0);
 
     auto tbbtask = [&](const tbb::blocked_range<int> &range) -> void {
       // thread local variables
       std::stack<typename ModelType::ParticleType> ParticleStack;
       std::stack<ClusterPositionType> ParticlePositionsStack;
       std::vector<double> &tmp_Rates = all_tbb_Rates.local();
-      const int my_thread_num = my_thread_nums.local();
+    //   const int my_thread_num = my_thread_nums.local();
 
+      const int my_thread_num = tbb::this_task_arena::current_thread_index();
+      
       for (int n = range.begin(); n != range.end(); ++n) {
         const int StartingPlace = n;
 #endif
@@ -590,6 +600,8 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
             Partition.Access(StartPosition, Parameter.open_boundary,
                              Parameter.open_boundary_negative);
         // std::cout << "equaldistributed \n";
+        // std::cout << "StartPosition=" << StartPosition[0] << " " <<
+        // StartPosition[1] << " " << StartPosition[2] << std::endl;
       }
 
       // for each involved particle type do
@@ -1340,17 +1352,37 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
 
           } // end while loop: until particle stack is empty
         }   // end of particle loop
-      }     // end of particle type loop
-#ifdef _OPENMP
+      }     // end of particle type loop 
+        // NumStartingPlacesTID[n] =  tbb::this_task_arena::current_thread_index();
+        // std::cout << "tbb::this_task_arena::current_thread_index() " << tbb::this_task_arena::current_thread_index() << " StartingPlace " << StartingPlace  << std::endl;     
+#ifndef _TBB
     } // end or for loop over starting places
-#elif _TBB
+#else
       } // end of range for loop in lambda
     };  // end of lambda taking a range of starting places
-    tbb::parallel_for(tbb::blocked_range<int>(0, NumStartingPlaces, 1),
-                      tbbtask);
+    // tbb::task_scheduler_init sched(Parameter.omp_threads);
+    // std::cout << "Parameter.omp_threads= " << Parameter.omp_threads << std::endl;
+    // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    // std::cout << "aftersleep" << std::endl;
+    std::cout << "parallel_for[ " << 0 << ","<< NumStartingPlaces <<"](tbbtask)" << std::endl;
+    tbb::parallel_for(tbb::blocked_range<int>(0, NumStartingPlaces, 4),
+                      tbbtask,tbb::auto_partitioner());
+    
+  //   std::cout <<"NumStartingPlacesTID";
+  //   for (auto TID : NumStartingPlacesTID)
+  //   {
+  //       std::cout << TID << ",";
+  //   }
+  //  std::cout << std::endl;
+    // tbb::task_arena executor(Parameter.omp_threads);
+    // executor.execute([=]() {
+    //   tbb::parallel_for(tbb::blocked_range<int>(0, NumStartingPlaces, 1),
+    //                     tbbtask);
+    // });
+
 #endif
 
-#ifdef _OPENMP
+#ifndef _TBB
 #pragma omp single // run by a single available thread.
     { Rates.swap(all_tmp_Rates[0]); }
 
@@ -1360,17 +1392,22 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
         Rates[i] += all_tmp_Rates[j][i];
       }
     }
-#elif _TBB
-    auto tbb_reduce_task =  []( const std::vector<double>& x, const std::vector<double>& y)->std::vector<double>
-        {      
-            const int size = x.size();
-            std::vector<double> res(size);
-            for (int i=0;i<size;++i)  
-                {res[i] = x[i] + y[i];}        
-            return res;
-        };
+#else
+    auto tbb_reduce_task =
+        [](const std::vector<double> &x,
+           const std::vector<double> &y) -> std::vector<double> {
+      const int size = x.size();
+      std::vector<double> res(size);
+      for (int i = 0; i < size; ++i) {
+        res[i] = x[i] + y[i];
+      }
+      return res;
+    };
 
     Rates = all_tbb_Rates.combine(tbb_reduce_task);
+
+
+    // Rates.resize(num_active_points * Model.RatesStorageSize);
 #endif
     // [josef] now that all thead-exclusive thread rates have been merged, we
     // can output them
