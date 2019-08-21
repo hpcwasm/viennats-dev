@@ -1,5 +1,8 @@
 # Required CMake Version
 ###############
+
+
+
 cmake_minimum_required(VERSION 3.4)
 
 
@@ -10,8 +13,6 @@ set(BUILD_WASM false CACHE BOOL "build webassembly")
 set(BUILD_WASM_STANDALONE true CACHE BOOL "build webassembly standalone")
 set(BUILD_TBB false CACHE BOOL "build tbb, no omp")
 
-
-
 IF(BUILD_WASM)
   # set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
   # set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_INCLUDE_DIR_BOOST}")
@@ -19,8 +20,8 @@ IF(BUILD_WASM)
   set(WASM_ROOT "/home/manstetten/github_wasm")
   add_definitions(-DBUILD_WASM)
   add_definitions(-D_WASM)
-ELSE(BUILD_WASM)
-  set(CMAKE_CXX_COMPILER clang++ CACHE STRING "c++ compiler" FORCE)
+ELSE(BUILD_WASM)  
+set(CXX "clang++")
 ENDIF(BUILD_WASM) 
 
 
@@ -203,7 +204,7 @@ ENDIF(NOT BUILD_WASM)
 
 
 
-find_package(VTK REQUIRED)
+find_package(VTK NO_MODULE)
 
 IF(VTK_FOUND)
   message(STATUS "VTK found (include: ${VTK_INCLUDE_DIRS}, lib: ${VTK_LIBRARY_DIRS})")
@@ -254,6 +255,9 @@ set(viennaTS "viennats")
 
 IF(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp)
+  set_target_properties(${viennaTS} PROPERTIES 
+  COMPILE_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align "
+  LINK_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align " )   
 ELSE(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp wasm/vtswasm.cpp ${TBB_OBJECTS} ${VTK_OBJECTS} ${BOOST_OBJECTS_FILESYSTEM} ${BOOST_OBJECTS_SYSTEM})
   # copy files to assets folder
@@ -264,7 +268,9 @@ ELSE(NOT BUILD_WASM)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/main.html ${CMAKE_CURRENT_BINARY_DIR}/main.html  COPYONLY)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/SimpleHTTPServer.py ${CMAKE_CURRENT_BINARY_DIR}/SimpleHTTPServer.py COPYONLY)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/example/3d_hole.vtk ${CMAKE_CURRENT_BINARY_DIR}/assets/3d_hole.vtk COPYONLY)
-  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/example/deposition3D.txt ${CMAKE_CURRENT_BINARY_DIR}/assets/deposition3D.txt COPYONLY)                                
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/example/deposition3D.txt ${CMAKE_CURRENT_BINARY_DIR}/assets/deposition3D.txt COPYONLY)   
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/debug_example/trench.vtk ${CMAKE_CURRENT_BINARY_DIR}/assets/trench.vtk COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/assets-wasm/debug_example/trench.txt ${CMAKE_CURRENT_BINARY_DIR}/assets/trench.txt COPYONLY)                                 
 
   message("using WASM")
   IF(BUILD_WASM_STANDALONE)
@@ -288,12 +294,16 @@ ELSE(NOT BUILD_WASM)
   
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
-  COMPILE_FLAGS "-s TOTAL_MEMORY=536870912 --bind -v -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  COMPILE_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0 -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=768mb --bind -v -s ALLOW_MEMORY_GROWTH=0 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
-  --embed-file assets/deposition3D.txt@/deposition3D.txt"
-  LINK_FLAGS "-s TOTAL_MEMORY=536870912  --bind -v -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  --embed-file assets/deposition3D.txt@/deposition3D.txt \
+  --embed-file assets/trench.txt@/trench.txt \
+  --embed-file assets/trench.vtk@/trench.vtk"
+  LINK_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0  -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=768mb  --bind -v -s ALLOW_MEMORY_GROWTH=0 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
-  --embed-file assets/deposition3D.txt@/deposition3D.txt" ) 
+  --embed-file assets/deposition3D.txt@/deposition3D.txt \
+  --embed-file assets/trench.txt@/trench.txt \
+  --embed-file assets/trench.vtk@/trench.vtk" ) 
 
 
 ENDIF(NOT BUILD_WASM) 

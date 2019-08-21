@@ -17,7 +17,7 @@
 #include <fstream>
 #include <string>
 
-//#include "kernel.hpp"
+#include "kernel.hpp"
 #include "math.hpp"
 
 
@@ -79,7 +79,7 @@ namespace lvlset {
                                 oss << "Value center point: " << it.center().value() << "  Value neighbor point: " << it.neighbor(i).value() << std::endl;
                             }
                         } else {
-                            if(it.neighbor(i).sign()==0)  {                     //TODO POS_SIGN
+                            if(static_cast<int>(it.neighbor(i).sign())==0)  {                     //TODO POS_SIGN
                                 if (it.center().value()<value_type(-0.5)) {
                                     oss << "The defined point " << it.center().start_indices() << " has a level set value less than -0.5 but has an undefined positive neighbor in direction " << i << "!" << std::endl;
                                 }

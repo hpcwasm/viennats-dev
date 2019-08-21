@@ -106,7 +106,7 @@ void SetupCells(const LS &l, geom::cells<D> &Cells,
 
     int sgn_count = 0;
     for (int i = 0; i < (1 << D); i++) {
-      sgn_count += it.corner(i).sign();
+      sgn_count += static_cast<int>(it.corner(i).sign());
     }
 
     if ((sgn_count != (1 << D)) && (sgn_count != 0)) {
@@ -602,13 +602,14 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
         // std::cout << "equaldistributed \n";
         // std::cout << "StartPosition=" << StartPosition[0] << " " <<
         // StartPosition[1] << " " << StartPosition[2] << std::endl;
-      }
+      } 
 
       // for each involved particle type do
       for (unsigned int ParticleType = 0;
            ParticleType < Model.NumberOfParticleTypes; ++ParticleType) {
+            //  std::cout << "ParticleType=" << ParticleType << std::endl;
         // if (ParticleType==1) //std::cout << "AH!!!\n";
-
+  
         // determine the number of particles which have to be simulated
         const unsigned int NumOfParticles =
             (ModelType::SpatiallyEqualDistributedFlux)
@@ -622,10 +623,11 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
                                    my_num_threads)
                            ? 1
                            : 0);
-
+ 
         // for each particle do
         for (unsigned int ParticleCounter = 0; ParticleCounter < NumOfParticles;
              ++ParticleCounter) {
+              //  std::cout << "ParticleCounter=" << ParticleCounter << std::endl;
           // std::cout << "\nparticles\n";
 
           // generate cluster energy and direction
@@ -1339,11 +1341,11 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
             //              std::cout << ParticleStack.size() << std::endl;
             if (ParticleStack.empty())
               break;
-
+ 
             //#######################################################
             //# retrieve particle from stack                        #
             //#######################################################
-
+ 
             p = ParticleStack.top();
             ParticleStack.pop();
 

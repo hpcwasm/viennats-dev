@@ -5,11 +5,21 @@
     <title>vts standalone</title>
   </head>
   <body>
+      <pre id="loger"></pre>
+      <pre id="logex"></pre>
+      <pre id="log"></pre>
     <p>vts standalone
+            <a id="resid">ResulsDownload</a>
+            
             <button onclick="initvts()">initvst</button>
             <button onclick="startsim()">startsim</button>
             <button onclick="startsimserial()">startsimserial</button>
+            <button onclick="debugsim()">debugsim</button>
+            <button onclick="getresults()">getresults</button>
             <button onclick="terminate()">terminate</button>
+            <button onclick="testbug()">testbug</button>
+            <textarea id="filename">./results_8bit/Hull_0.vtp</textarea>
+     
   </body>
   <script async src=viennats.js></script>
   <script async src=bootstrap.js></script>

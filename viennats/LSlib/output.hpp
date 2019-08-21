@@ -380,7 +380,7 @@ namespace lvlset {
       const double gridDelta = l.grid().grid_delta();
 
       // set up iterator and initialise storage
-      typename LevelSetType::template const_iterator_neighbor_filtered<typename LevelSetType::filter_value,  1> itA(l, typename LevelSetType::filter_value(2.0));
+      typename LevelSetType::template const_iterator_neighbor_filtered<typename LevelSetType::filter_value,  1> itA(l, typename LevelSetType::filter_all_defined());
       std::vector< vec<typename LevelSetType::value_type, D> > normals;
 
       vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
@@ -738,7 +738,7 @@ namespace lvlset {
 
             float dist;
             if (only_signs) {
-                if (it.sign()==POS_SIGN) dist=limit; else dist=-limit;
+                if (it.sign()==lvlset::sign_type::POS_SIGN) dist=limit; else dist=-limit;
             } else {
                 dist=static_cast<float>(it.value());
                 dist=std::min(limit,dist);

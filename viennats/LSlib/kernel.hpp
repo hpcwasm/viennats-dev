@@ -59,7 +59,7 @@ namespace lvlset {
     unsigned top_levelset_id=0;
     // types and constants
 
-    enum sign_type {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
+    typedef enum class sign_type {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
 
     typedef unsigned int direction_type;            //direction type
     const direction_type X_DIRECTION=0;             //constants for the directions
@@ -1211,12 +1211,12 @@ namespace lvlset {
         //##############################################
 
         static sign_type sign(value_type value) {                           //this function returns the sign
-            return (sign_type(math::signbit(value))?NEG_SIGN:POS_SIGN);     //of a given level set value "value"
+            return math::signbit(value)?sign_type::NEG_SIGN:sign_type::POS_SIGN;     //of a given level set value "value"
         }
 
         sign_type sign(size_type pt_id) const {     //this function returns the sign of a grid point given by
-            if (pt_id==POS_PT) return POS_SIGN;     //its point-ID, and also checks if the point-ID is a positive or
-            if (pt_id==NEG_PT) return NEG_SIGN;     //negative run
+            if (pt_id==POS_PT) return sign_type::POS_SIGN;     //its point-ID, and also checks if the point-ID is a positive or
+            if (pt_id==NEG_PT) return sign_type::NEG_SIGN;     //negative run
             //shfdhsfhdskjhgf assert(is_defined(pt_id));
             return sign_type(sign(value2(pt_id)));
         }
@@ -1679,7 +1679,7 @@ namespace lvlset {
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::UNDEF_PT   =  std::numeric_limits<size_type>::max()-(lvlset_omp_max_num_threads+2);
 
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::POS_VALUE=std::numeric_limits<value_type>::max();
-    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_VALUE=-std::numeric_limits<value_type>::max();
+    template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::value_type levelset<GridTraitsType, LevelSetTraitsType>::NEG_VALUE=std::numeric_limits<value_type>::lowest();
 
     template <class GridTraitsType, class LevelSetTraitsType> const typename levelset<GridTraitsType, LevelSetTraitsType>::size_type levelset<GridTraitsType, LevelSetTraitsType>::INACTIVE=std::numeric_limits<size_type>::max();
 
@@ -1696,6 +1696,13 @@ namespace lvlset {
         //from a sorted list "point_defs" of index/level set value-pairs
         //NOTE: a valid list of points must include all grid points, which are connected by edges of the grid, which are intersected
         //by the surface
+        #ifdef WASM_VERBOSE
+        std::cout << "begin of insert_points(point_defs)" << std::endl;
+        for (auto p : point_defs) std::cout << p.second << ",";
+        std::cout <<std::endl;
+        print();
+        #endif 
+
 
         //TODO: is not parallelized yet
         assert(!point_defs.empty());
@@ -1706,7 +1713,7 @@ namespace lvlset {
         initialize(tmp_segmentation);
 
         if (point_defs.front().first!=Grid.min_point_index()) {
-            push_back_undefined(0, Grid.min_point_index(),(sign_type(sign(point_defs.front().second))==POS_SIGN)?POS_PT:NEG_PT);     //TODO
+            push_back_undefined(0, Grid.min_point_index(),(sign(point_defs.front().second)==sign_type::POS_SIGN)?POS_PT:NEG_PT);     //TODO
         }
 
         typename PointsType::const_iterator begin_pt_defs=point_defs.begin();//+starts[t_num];
@@ -1720,7 +1727,7 @@ namespace lvlset {
         while (it_pt_defs!=end_pt_defs) {
 
             if (math::abs(it_pt_defs->second)>=std::numeric_limits<typename PointsType::value_type::second_type>::max()) {
-                push_back_undefined(0,it_pt_defs->first,(sign_type(sign(it_pt_defs->second))==POS_SIGN)?POS_PT:NEG_PT);
+                push_back_undefined(0,it_pt_defs->first,(sign(it_pt_defs->second)==sign_type::POS_SIGN)?POS_PT:NEG_PT);
             } else {
                 push_back(0,it_pt_defs->first, it_pt_defs->second);
             }
@@ -1757,12 +1764,17 @@ namespace lvlset {
 
                 if (tmp>=next_index) break;
 
-                push_back_undefined(0,tmp,(signs[q]==POS_SIGN)?POS_PT:NEG_PT);
+                push_back_undefined(0,tmp,(signs[q]==sign_type::POS_SIGN)?POS_PT:NEG_PT);
 
             }
         }
 
         finalize(2);
+        #ifdef WASM_VERBOSE
+        std::cout << "end of insert_points(point_defs)" << std::endl;
+        print();
+        #endif 
+
     }
 
 
@@ -1797,7 +1809,7 @@ namespace lvlset {
             for (typename sub_levelsets_type::size_type j=1;j<i;++j) {
                 s.push_back_undefined(segmentation[j-1],Grid.decrement_indices(segmentation[j]),SEGMENT_PT+j);
             }
-        }
+        }  
     }
 
     template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::finalize(int num_lay) {
@@ -1930,7 +1942,7 @@ namespace lvlset {
         }
     }
 
-    template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::segment(){
+   template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::segment(){
         //segments the levelset in the available sub_levelsets to balance correctly
         //create new Level-Set
         levelset<GridTraitsType, LevelSetTraitsType> old_lvlset(grid());
@@ -1954,7 +1966,7 @@ namespace lvlset {
                 if (it.is_defined()) {
                     s.push_back(it.start_indices(),it.value());
                 } else {
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
         }
@@ -1964,10 +1976,26 @@ namespace lvlset {
 
     template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::prune() {
         //removes all grid points, which do not have at least one opposite signed neighbour and distributes points across sub_levelsets to approximately balance the number of points
+        #ifdef WASM_VERBOSE
+        std::cout << "at start of prune()" << std::endl;
+        print();
+        int idebug=0;
+        #endif // VERBOSE  
+
+       
+       #ifdef WASM_VERBOSE
+            std::cout << "in prune() s.distances beginning :" << std::endl;
+            std::cout << "&s.distances=" << &sub_levelsets[0].distances << std::endl;
+            for (auto d : sub_levelsets[0].distances) std::cout << d << ",";
+            std::cout << std::endl;
+            #endif // VERBOSE  
+
         levelset<GridTraitsType, LevelSetTraitsType> old_lvlset(grid()); //create new Level-Set
         swap(old_lvlset);
 
         initialize(old_lvlset.get_new_segmentation(), old_lvlset.get_allocation());
+
+
 
         #pragma omp parallel num_threads(sub_levelsets.size()) //use num_threads(sub_levelsets.size()) threads
         {
@@ -1976,31 +2004,81 @@ namespace lvlset {
             p=omp_get_thread_num();
             #endif
 
+                #ifdef WASM_VERBOSE 
+                    std::cout << " s=sub_levelsets["<<p<< "]"<< std::endl;
+                #endif 
+
             sub_levelset_type & s=sub_levelsets[p];
+
+            #ifdef WASM_VERBOSE
+            std::cout << "in prune() s.distances before :" << std::endl;
+            std::cout << "&s.distances=" << &s.distances << std::endl;
+            for (auto d : s.distances) std::cout << d << ",";
+            std::cout << std::endl;
+            #endif // VERBOSE  
 
             const_iterator_neighbor_filtered<filter_all,1> it(old_lvlset, filter_all(), (p==0)?grid().min_point_index():segmentation[p-1]);
             vec<index_type, D> end_v=(p!=static_cast<int>(segmentation.size()))?segmentation[p]:grid().increment_indices(grid().max_point_index());
 
             for (;it.indices()<end_v;it.next()) {
-
+                #ifdef WASM_VERBOSE 
+                std::cout << "for idebug="<< idebug++;
+                 #endif 
                 if (it.center().is_defined()) {
+                    #ifdef WASM_VERBOSE 
+                    std::cout << ",it.center().is_defined()=true";
+                    #endif 
                     int i=0;
                     sign_type sgn=it.center().sign2();
                     for(;i<2*D;i++) {
                         if (it.neighbor(i).sign()!=sgn) break;
                     }
                     if (i!=2*D) {
+                        #ifdef WASM_VERBOSE 
+                        std::cout << ",i!=2*D, it.center().value()="<< it.center().value();
+                        #endif 
                         s.push_back(it.indices(),it.center().value());
                     } else {
-                        s.push_back_undefined(it.indices(),(sgn==POS_SIGN)?POS_PT:NEG_PT);
+                        #ifdef WASM_VERBOSE 
+                        std::cout << ",i==2*D, sgn="<< static_cast<int>(sgn);
+                        #endif 
+                        s.push_back_undefined(it.indices(),(sgn==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
                 } else {
-                    s.push_back_undefined(it.indices(),(it.center().sign()==POS_SIGN)?POS_PT:NEG_PT);
+                     #ifdef WASM_VERBOSE 
+                    std::cout << ",it.center().is_defined()=fals, it.center().sign()="<<  static_cast<int>(it.center().sign());
+                    #endif 
+                    s.push_back_undefined(it.indices(),(it.center().sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
+                  #ifdef WASM_VERBOSE 
+                std::cout << std::endl;
+                #endif 
             }
+
+
+                #ifdef WASM_VERBOSE
+                std::cout << "in prune() s.distances after:" << std::endl;
+                std::cout << "&s.distances=" << &s.distances << std::endl;
+                for (auto d : s.distances) std::cout << d << ",";
+                std::cout << std::endl;
+                #endif // VERBOSE  
         }
 
+
+    
+
+        #ifdef WASM_VERBOSE
+        std::cout << "in prune() before finalize" << std::endl;
+        print();
+        #endif // VERBOSE  
+
         finalize(std::min(old_lvlset.num_layers,static_cast<int>(2)));
+
+        #ifdef WASM_VERBOSE
+        std::cout << "at end of prune()" << std::endl;
+        print();
+        #endif // VERBOSE  
+
     }
 
     template <class GridTraitsType, class LevelSetTraitsType>
@@ -2074,16 +2152,16 @@ namespace lvlset {
                             //std::copy(old_data.begin()+it.center().active_pt_id2()*data_size,old_data.begin()+it.center().active_pt_id2()*data_size+data_size,std::back_inserter(data));
                         }
                     } else {
-                        s.push_back_undefined(it.start_indices(),(it.center().sign()==POS_SIGN)?POS_PT:NEG_PT);
+                        s.push_back_undefined(it.start_indices(),(it.center().sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
 
                 } else {    //if the center is not an inactive grid point
 
                     int n_pt=-1;
-                    if (it.center().sign()==POS_SIGN) {
+                    if (it.center().sign()==sign_type::POS_SIGN) {
                         value_type distance=POS_VALUE;
                         for(int i=0;i<2*D;i++) {
-                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==NEG_SIGN)) {
+                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==sign_type::NEG_SIGN)) {
                                 if (distance>it.neighbor(i).value()+1.) {
                                     distance=copysign(it.neighbor(i).value()+1.,1.);
                                     if (distance<=0.5) n_pt=i;
@@ -2104,7 +2182,7 @@ namespace lvlset {
                     } else {
                         value_type distance=NEG_VALUE;
                         for(int i=0;i<2*D;i++) {
-                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==POS_SIGN)) {
+                            if (it.neighbor(i).is_active() && (it.neighbor(i).sign()==sign_type::POS_SIGN)) {
                                 if (distance<it.neighbor(i).value()-1.) {
                                     distance=copysign(it.neighbor(i).value()-1.,-1.);
                                     if (distance>=-0.5) n_pt=i;
@@ -2200,7 +2278,7 @@ namespace lvlset {
                     if (math::abs(d)<std::numeric_limits<typename LevelSetType::value_type>::max()) {
                         s.push_back(pos, d);
                     } else {
-                        s.push_back_undefined(pos, (sign(d)==POS_SIGN)?POS_PT:NEG_PT);
+                        s.push_back_undefined(pos, (sign(d)==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                     }
 
                     switch(compare(itA.end_indices(), itB.end_indices())) {
@@ -2266,7 +2344,7 @@ namespace lvlset {
                             continue;
                         }
                     }
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
         }
@@ -2299,7 +2377,7 @@ namespace lvlset {
                 if (it.is_defined()) {
                     s.push_back(it.start_indices(),it.value2());
                 } else {
-                    s.push_back_undefined(it.start_indices(),(it.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(it.start_indices(),(it.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
 
@@ -2307,11 +2385,13 @@ namespace lvlset {
         }
     }
 
-
     template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::expand(int end_width, int start_width) {
 
         //shfdhsfhdskjhgf assert(start_width<=number_of_layers());
-
+        #ifdef WASM_VERBOSE
+        std::cout << "expand(" <<end_width << "," << start_width << ")" << std::endl;
+        print();
+        #endif 
         const value_type total_limit=end_width*0.5;
 
         levelset<GridTraitsType, LevelSetTraitsType> old_lvlset(grid());
@@ -2352,7 +2432,7 @@ namespace lvlset {
                         if (math::abs(it.center().value())<=total_limit) {
                             s.push_back(it.start_indices(),it.center().value());
                         } else {
-                            if (it.center().sign()==POS_SIGN) {
+                            if (it.center().sign()==sign_type::POS_SIGN) {
                                 value_type distance=POS_VALUE;
                                 for (int i=0;i<2*D;i++) {
                                     //if (it.neighbor(i).sign()>0) //shfdhsfhdskjhgf assert(it.neighbor(i).value()!=0);
@@ -2388,6 +2468,10 @@ namespace lvlset {
         }
         //setting up the segmentation correctly
         segment();
+
+        #ifdef WASM_VERBOSE
+        print();
+        #endif 
     }
 
 
@@ -2396,7 +2480,7 @@ namespace lvlset {
     //each voxel (grid cell) which has at least one active grid point as corner, has all its corner grid points defined
     */
 
-    template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::add_voxel_corners() {
+   template <class GridTraitsType, class LevelSetTraitsType> void levelset<GridTraitsType, LevelSetTraitsType>::add_voxel_corners() {
 
 
 
@@ -2450,7 +2534,7 @@ namespace lvlset {
                     //insert new point
                     value_type distance;
                     for (int m=0;m<2*D;++m) ix[m].go_to_indices_sequential(coords);
-                    if (it_mid.sign()==POS_SIGN) {
+                    if (it_mid.sign()==sign_type::POS_SIGN) {
                         distance=POS_VALUE;
                         for (int m=0;m<2*D;++m) distance=std::min(distance, ix[m].value()+value_type(1));
                     } else {
@@ -2459,7 +2543,7 @@ namespace lvlset {
                     }
                     s.push_back(coords, distance);
                 } else {
-                    s.push_back_undefined(coords,  (it_mid.sign()==POS_SIGN)?POS_PT:NEG_PT);
+                    s.push_back_undefined(coords,  (it_mid.sign()==sign_type::POS_SIGN)?POS_PT:NEG_PT);
                 }
             }
 
@@ -2536,7 +2620,7 @@ namespace lvlset {
                     if (it.center().is_defined()) {
                         s.push_back(it.start_indices(),it.center().value());
                     } else {
-                        if (it.center().sign()==POS_SIGN) {
+                        if (it.center().sign()==sign_type::POS_SIGN) {
                             value_type distance=POS_VALUE;
                             std::bitset<D> x;
                             for (int i=0;i<2*D;i++) {
@@ -2646,7 +2730,7 @@ namespace lvlset {
         }
 
 
-        const const_iterator_runs_offset& neighbor(int direction, int item=0) const {
+         const const_iterator_runs_offset& neighbor(int direction, int item=0) const {
             //access to a certain neighbor grid point
             return it_neighbors[NumN*direction+item];
         }
@@ -2691,7 +2775,7 @@ namespace lvlset {
             return tmp;
         }
 
-        value_type gradient2(int dir) const {       //returns the derivation of the level set function in respect to the index for the given axis direction
+        value_type gradient2(int dir)  {       //returns the derivation of the level set function in respect to the index for the given axis direction
             const value_type phi_p=neighbor(dir,0).value();
             const value_type phi_n=neighbor(dir+D,0).value();
 
@@ -2820,7 +2904,7 @@ namespace lvlset {
             return sub;
         }*/
 
-        size_type current_run_code() const {
+         size_type current_run_code() const {
             return start_indices_pos[r_level];
         }
 
@@ -2888,14 +2972,18 @@ namespace lvlset {
         value_type value() const {
             //returns the level set value for the current run
             //if the run is undefined either POS_VALUE or NEG_VALUE is returned
+            // value_type res = 0;
             if (is_defined()) {
-                return value2();
-            } else if (current_run_code()==POS_PT) {
+                return  value2();
+            }
+             if (current_run_code()==POS_PT) {
                 return POS_VALUE;
-            } else {
+            } if (current_run_code()==NEG_PT) {
                 //assert(current_run_code()==NEG_PT);                                                  //TODO
                 return NEG_VALUE;
             }
+             throw std::runtime_error("not allowed");
+            // return res;
         }
 
         value_type value2() const {
@@ -2908,22 +2996,25 @@ namespace lvlset {
         }
 
         value_type value_p() const{
+            // static value_type res =0;
             //returns the level set value for the current run
             //if the run is undefined positive, POS_VALUE is returned, else NEG_VALUE
             if (is_defined()) {
                 return value2();
-            } else if (current_run_code()==POS_PT) {
+            } 
+            if (current_run_code()==POS_PT) {
                 return POS_VALUE;
-            } else {
+            }  
+            if (current_run_code()!=POS_PT) {
                 //assert(current_run_code()==NEG_PT);
                 if(any(abs_coords, l.Grid.max_point_index())){
                     return -0.5;             //TODO: add border checking
-                }
-                else if(any(abs_coords, l.Grid.min_point_index())){
+                } else if(any(abs_coords, l.Grid.min_point_index())){
                     return -0.5;             //TODO: add border checking
                 }
                 return NEG_VALUE;
             }
+            // return res;
         }
 
         bool is_active() const {

@@ -580,7 +580,7 @@ template<class LevelSetType,class VelocityClassType,class IntegrationSchemeType,
                 // if LS point is not an active point, push an undefined point to new levelset
                 if (!srfIT.is_active()) {
                     assert(math::abs(srfIT.value())>0.5);
-                    new_lvlset.push_back_undefined(p,srfIT.start_indices(),(srfIT.sign()==POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);
+                    new_lvlset.push_back_undefined(p,srfIT.start_indices(),(srfIT.sign()==lvlset::sign_type::POS_SIGN)?LevelSetType::POS_PT:LevelSetType::NEG_PT);
                     continue;
                 }
 

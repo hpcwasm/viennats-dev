@@ -1,0 +1,62 @@
+//geometry_files="./trench2.vtk";
+geometry_files="./trench.vtk";
+surface_geometry=true;
+
+print_rates=false;
+print_velocities=false;
+print_materials=false;
+print_explicit_lvst=false;
+print_vtp=false;
+print_lvst=false;
+remove_bottom=true;
+
+output_path="./results/";
+
+cfl_condition = 0.45;
+
+//grid_delta=0.249e-1;
+grid_delta=0.49;
+report_import_errors=false;
+default_disk_orientation={0,1,0};
+
+num_dimensions = 2;
+
+omp_threads=1;
+
+open_boundary="+y";
+
+boundary_conditions = {
+	{PERIODIC, PERIODIC},
+	{INFINITE,INFINITE},
+{INFINITE,INFINITE}	
+};
+
+
+print_volume_tetra=false;
+print_volume_hull=true;
+
+
+processes={
+    {
+	model_name="NonlinearDeposition";
+	process_time=0.1;
+	add_layer=1;
+
+	output_volume={0,0.1};
+	output_times={0,0.1};
+
+	parameters= {
+		direction		= {0,-1,0};
+		deposition_rate		= 0.1;
+		sticking_probability	= 0.1;
+		reaction_order		= 1.;
+		stop_criterion		= 0.1;
+		statistical_accuracy	= 500.;
+	};
+grow_new_oxide=true;
+//initial_output=true;
+final_output=true;
+//mask_layer=true;
+
+    }
+};

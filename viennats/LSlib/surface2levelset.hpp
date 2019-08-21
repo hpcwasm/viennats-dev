@@ -41,7 +41,8 @@ namespace lvlset {
                                         vec<T,3> Point,
                                         const vec<T,3> *c,
                                         int dir,
-                                        T& intersection
+                                        T& intersection,
+                                                vec<T,3> &A 
                                     ) {
 
 
@@ -49,7 +50,7 @@ namespace lvlset {
         bool inside_pos=true;
         bool inside_neg=true;
 
-        T A[3];
+        // T A[3];
 
         const int dirA=(dir+1)%3;
         const int dirB=(dir+2)%3;
@@ -87,7 +88,7 @@ namespace lvlset {
             return (inside_pos)?1:-1;
         } else {
             return 0;
-        }
+        }  
     }
 
 
@@ -101,13 +102,14 @@ namespace lvlset {
                                         vec<T,2> Point,
                                         const vec<T,2> *c,
                                         int dir,
-                                        T& intersection
+                                        T& intersection,
+                                        vec<T,2> &A 
                                     ) {
 
         bool inside_pos=true;
         bool inside_neg=true;
 
-        T A[2];
+        // T A[2];
 
         const int dirA=(dir+1)%2;
 
@@ -117,6 +119,8 @@ namespace lvlset {
             if (A[k]<T(0)) inside_pos=false;
             if (A[k]>T(0)) inside_neg=false;
         }
+
+
 
         if ((!inside_pos && inside_neg) || (inside_pos && !inside_neg)) {
           T sum=A[0]+A[1];
@@ -258,7 +262,7 @@ namespace lvlset {
                     assert(min_idx[q]>=l.grid().min_grid_index(q));
                     assert(max_idx[q]<=l.grid().max_grid_index(q));
                 }
-
+             
 
 
                 for (int z=0;z<D;z++) {         //for each axis direction do
@@ -283,10 +287,12 @@ namespace lvlset {
                         for (int k=1;k<D;k++) p[(k+z)%D]=l.grid().grid_position_of_global_index((k+z)%D, it_b[(k+z)%D]);
 
                         value_type intersection;
+                        vec<value_type,D> A;
                         int intersection_status=calculate_gridline_triangle_intersection(  p,
                                                                                             c,
                                                                                             z,
-                                                                                            intersection
+                                                                                            intersection,
+                                                                                            A
                                                                                         );
 
                         if (intersection_status!=0) {
@@ -339,7 +345,7 @@ namespace lvlset {
 
                                 if (RealDistance==0.) RealDistance=0.;          //to avoid zeros with negative sign
 
-                                points.push_back(   std::make_pair(
+                              points.push_back(   std::make_pair(
                                                         l.grid().global_indices_2_local_indices(it_b),
                                                         std::make_pair(SignDistance, RealDistance)
                                                     )
@@ -366,6 +372,8 @@ namespace lvlset {
 
         l.insert_points(points2);    //initialize level set function
 
+        
+
         if (report_import_errors) {
           std::string err= misc::test(l);     //check level set function
           if (err.size()) {                   //if inconsistent print out error message
@@ -379,8 +387,21 @@ namespace lvlset {
           }
         }
 
+        #ifdef WASM_VERBOSE
+        std::cout << "in init() before prune()" << std::endl;
+        l.print();
+        #endif // VERBOSE
         l.prune();       //remove active grid point which have no opposite signed neighbor grid point
+        #ifdef WASM_VERBOSE
+        std::cout << "in init() before segment()" << std::endl;
+        l.print();
+        #endif // VERBOSE        
         l.segment();    //distribute points evenly across threads
+
+        #ifdef WASM_VERBOSE
+        std::cout << "end of init()" << std::endl;
+        l.print();
+        #endif // VERBOSE
     }
 
 }

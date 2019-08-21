@@ -757,8 +757,8 @@ struct ReportError {
         for(size_t i=0; i<input_transformation.size(); ++i) input_transformation_signs[i] = input_transformation[i] >= 0;
 
         //set boundary conditions to boundary_conditions_type
-        boundary_conditions.resize(3);
-        for(int i=0; i<3; ++i){
+        boundary_conditions.resize(num_dimensions);
+        for(int i=0; i<num_dimensions; ++i){
             boundary_conditions[i].min = boundary_condition[2*i];
             boundary_conditions[i].max = boundary_condition[2*i+1];
         }

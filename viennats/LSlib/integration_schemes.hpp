@@ -329,7 +329,7 @@ namespace lvlset {
         EngquistOsherVector(const LevelSetType& l, const VelocityType& v): LS(l), velocities(v),initialized(false) {}
 
         template <class IteratorType>
-        value_type operator()(const IteratorType& it, unsigned int material) {
+        value_type operator()(IteratorType& it, unsigned int material) {
 
             assert(it.is_active());
 

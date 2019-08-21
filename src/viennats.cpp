@@ -12,8 +12,8 @@
 
 // COMPILE OPTIONS#####################################
 #define TEST_MODE
-//#define VERBOSE
-
+#define VERBOSE
+// #define WASM_VERBOSE
 // Dimensions
 #define DIMENSION_3
 #define DIMENSION_2
@@ -819,6 +819,24 @@ int runfile(const std::string filename, int numtbbthreads) {
 
   lvlset::top_levelset_id = 0;
 
+  return 5;
+}
+
+#ifdef _TBB
+int warmupProxy(int numtbbthreads) {
+  // tbb::task_scheduler_init sched(numtbbthreads);
+
+  // dummy warmup using maxmum num thread directly from main thread
+
+  // pthread_t t1;
+
+  std::thread t1(&warmup, numtbbthreads);
+  // pthread_create(&t1, NULL, &runfile, (void *)&numtbbthreads );
+
+  // void* result;
+  // pthread_join(t1,&result);
+  // pthread_detach(t1);
+  t1.detach();
   return 0;
 }
 
@@ -828,7 +846,7 @@ int runfile(const std::string filename, int numtbbthreads) {
 //   return 0;
 // }
 
-#ifdef _TBB
+
 int init(int numtbbthreads) {
   // sched = new tbb::task_scheduler_init(numtbbthreads);
   return 4;
@@ -871,6 +889,8 @@ int warmup(int numtbbthreads) {
     std::cout << "dummyvals[i]=" << i << " threadids[i]=" << threadids[i]<< std::endl;
   return 5;
 }
+
+std::string getOutputFilename() { return "some/path/to/a/file.vtk"; }
 
 int warmupProxy(int numtbbthreads) {
   // tbb::task_scheduler_init sched(numtbbthreads);
@@ -956,6 +976,4 @@ std::string getOutputFilename() { return "some/path/to/a/file.vtk"; }
 // }
 
 // emscripten::function("runfile", &runfile);
-
-
 #endif

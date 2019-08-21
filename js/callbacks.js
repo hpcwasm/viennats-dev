@@ -1,3 +1,6 @@
+
+// Module['ASAN_OPTIONS'] = 'detect_container_overflow=0'
+// Module['ASAN_OPTIONS'] = 'detect_stack_use_after_return=1'
 Module['CPPCallback'] = function(str) {
       console.log('(worker) CPPCallback received, forwarding it to main');
       j = JSON.parse(str)
