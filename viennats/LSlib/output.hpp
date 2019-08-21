@@ -353,7 +353,7 @@ namespace lvlset {
       std::cout << "fileready VTU:" << oss.str() << std::endl;
       wasm::vtswasm::FileReady(oss.str());
 #endif         
-      }
+      } 
 
 
       if(p.print_volume_hull){
@@ -380,7 +380,7 @@ namespace lvlset {
       const double gridDelta = l.grid().grid_delta();
 
       // set up iterator and initialise storage
-      typename LevelSetType::template const_iterator_neighbor_filtered<typename LevelSetType::filter_value,  1> itA(l, typename LevelSetType::filter_all_defined());
+      typename LevelSetType::template const_iterator_neighbor_filtered<typename LevelSetType::filter_all_defined,  1> itA(l, typename LevelSetType::filter_all_defined());
       std::vector< vec<typename LevelSetType::value_type, D> > normals;
 
       vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();

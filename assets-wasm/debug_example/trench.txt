@@ -5,8 +5,9 @@ surface_geometry=true;
 print_rates=false;
 print_velocities=false;
 print_materials=false;
-print_explicit_lvst=false;
+print_explicit_lvst=true;
 print_vtp=false;
+print_vtk=true;
 print_lvst=false;
 remove_bottom=true;
 

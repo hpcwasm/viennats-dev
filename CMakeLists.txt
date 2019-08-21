@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.4)
 # WebAssembly Config for emscripten
 ###############
 set(BUILD_WASM false CACHE BOOL "build webassembly")
-set(BUILD_WASM_STANDALONE true CACHE BOOL "build webassembly standalone")
+set(BUILD_WASM_STANDALONE false CACHE BOOL "build webassembly standalone")
 set(BUILD_TBB false CACHE BOOL "build tbb, no omp")
 
 IF(BUILD_WASM)
@@ -21,7 +21,7 @@ IF(BUILD_WASM)
   add_definitions(-DBUILD_WASM)
   add_definitions(-D_WASM)
 ELSE(BUILD_WASM)  
-set(CXX "clang++")
+set(CMAKE_CXX_COMPILER "clang++" CACHE STRING "clang compiler" FORCE)
 ENDIF(BUILD_WASM) 
 
 
@@ -255,9 +255,9 @@ set(viennaTS "viennats")
 
 IF(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp)
-  set_target_properties(${viennaTS} PROPERTIES 
-  COMPILE_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align "
-  LINK_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align " )   
+  # set_target_properties(${viennaTS} PROPERTIES 
+  # COMPILE_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align "
+  # LINK_FLAGS "-O1 -fsanitize=null -fsanitize=undefined -fsanitize=address -Wcast-align " )   
 ELSE(NOT BUILD_WASM)
   ADD_EXECUTABLE(${viennaTS} src/viennats.cpp wasm/vtswasm.cpp ${TBB_OBJECTS} ${VTK_OBJECTS} ${BOOST_OBJECTS_FILESYSTEM} ${BOOST_OBJECTS_SYSTEM})
   # copy files to assets folder
@@ -284,7 +284,7 @@ ELSE(NOT BUILD_WASM)
   # -s DEFAULT_PTHREAD_STACK_SIZE=8388608 \
   # -s BINARYEN_EXTRA_PASSES=\"--disable-bulk-memory\" 
   # 536870912, 268435456, 134217728
-  set(OLEVEL "2")
+  set(OLEVEL "O2 --closure 1 --llvm-lto 1 -g1")
   IF(BUILD_TBB)
   set(USE_PTHREADS "1")
   set(WORKER_POOL "-s PTHREAD_POOL_SIZE=0")
@@ -294,12 +294,12 @@ ELSE(NOT BUILD_WASM)
   
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
-  COMPILE_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0 -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=768mb --bind -v -s ALLOW_MEMORY_GROWTH=0 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  COMPILE_FLAGS " -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
   --embed-file assets/deposition3D.txt@/deposition3D.txt \
   --embed-file assets/trench.txt@/trench.txt \
   --embed-file assets/trench.vtk@/trench.vtk"
-  LINK_FLAGS "-s DISABLE_EXCEPTION_CATCHING=0  -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=768mb  --bind -v -s ALLOW_MEMORY_GROWTH=0 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -O${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  LINK_FLAGS "  -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb  --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
   --embed-file assets/deposition3D.txt@/deposition3D.txt \
   --embed-file assets/trench.txt@/trench.txt \

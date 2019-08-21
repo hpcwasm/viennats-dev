@@ -59,7 +59,7 @@ namespace lvlset {
     unsigned top_levelset_id=0;
     // types and constants
 
-    typedef enum class sign_type {POS_SIGN=0, NEG_SIGN=1};        //type used for the sign
+    typedef enum class sign_type {POS_SIGN=0, NEG_SIGN=1} SignType;        //type used for the sign
 
     typedef unsigned int direction_type;            //direction type
     const direction_type X_DIRECTION=0;             //constants for the directions

@@ -3,7 +3,7 @@
 // Module['ASAN_OPTIONS'] = 'detect_stack_use_after_return=1'
 Module['CPPCallback'] = function(str) {
       console.log('(worker) CPPCallback received, forwarding it to main');
-      j = JSON.parse(str)
+      var j = JSON.parse(str) 
       // if (j.fileready === true) {
       //   // get file content and augment json object with it
       //   console.log('(worker) fileready ' + j.filename);

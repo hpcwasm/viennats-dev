@@ -26,7 +26,7 @@ print_rates=false;
 print_velocities=false;
 print_materials=false;
 print_vtp=false;
-print_explicit_lvst=false;
+print_explicit_lvst=true;
 print_lvst=false;
 print_volume_hull=true;
 print_volume_tetra=false;
@@ -45,7 +45,7 @@ processes = {
 		sticking_probability	= 1.;
 		reaction_order		= 1.;
 		stop_criterion		= 0.1;
-		statistical_accuracy	=50.;
+		statistical_accuracy	=500.;
 	};
 	grow_new_oxide=true;
 	final_output=true;
