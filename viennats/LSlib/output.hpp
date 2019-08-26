@@ -310,7 +310,7 @@ namespace lvlset {
     template <class GridTraitsType, class LevelSetTraitsType>
     void write_explicit_surface_opendx(const levelset<GridTraitsType, LevelSetTraitsType>& l, const std::string& filename, typename LevelSetTraitsType::value_type eps=0.) {
         write_explicit_surface_opendx(l, filename, DefaultDataType(), eps);
-    }
+    } 
 
     template <class LevelSetsType, class CounterType, class ParameterType>
     void write_explicit_volume_vtk(const LevelSetsType& LevelSets, const CounterType counter, ParameterType& p, double eps=0.) {
@@ -559,7 +559,7 @@ namespace lvlset {
         writeVTP(s, filename + ".vtp");
         wasm::vtswasm::FileReady(filename + ".vtp");
         wasm::vtswasm::FileReady(filename);
-#endif        
+#endif               
     }
 
     template <class GridTraitsType, class LevelSetTraitsType>

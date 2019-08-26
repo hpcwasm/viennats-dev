@@ -891,7 +891,7 @@ namespace proc {
         std::ostringstream oss;
         oss << Parameter.output_path<< output_info.file_name <<"_" << i << "_" << output_info.output_counter << ".vtk";
   #ifdef VERBOSE
-        msg::print_message("print vtk");
+        msg::print_message("print vtk2");
   #endif
 
         write_explicit_surface_vtk(*it,oss.str());
@@ -1292,7 +1292,7 @@ namespace proc {
                         std::ostringstream oss;
                         oss << Parameter.output_path<< output_info.file_name <<"_" << i << "_" << output_info.output_counter << ".vtk";
 #ifdef VERBOSE
-                        msg::print_message("print vtk");
+                        msg::print_message("print vtk3");
 #endif
 
                         if (i!=LevelSets.size()-1) {
@@ -1900,7 +1900,7 @@ namespace proc {
                         std::ostringstream oss;
                         oss << Parameter.output_path<< output_info.file_name <<"_" << i << "_" << output_info.output_counter << ".vtk";
 #ifdef VERBOSE
-                        msg::print_message("print vtk");
+                        msg::print_message("print vtk1");
 #endif
 
                         if (i!=LevelSets.size()-1 || is_selective_depo) {

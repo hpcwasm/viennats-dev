@@ -9,7 +9,7 @@ num_dimensions = 3;
 input_scale=0.5e-6;
 
 cfl_condition = 0.5;
-grid_delta=1e-6;
+grid_delta=10e-6;
 
 
 open_boundary="+y";

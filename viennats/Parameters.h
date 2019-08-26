@@ -253,7 +253,7 @@ struct ReportError {
                     MaskLayer=false;
 
                     smoothing_max_curvature=std::numeric_limits<double>::max();
-                    smoothing_min_curvature=-std::numeric_limits<double>::max();
+                    smoothing_min_curvature=std::numeric_limits<double>::lowest();
                     smoothing_material_level=0;
                     smoothing_max_iterations=100;
 

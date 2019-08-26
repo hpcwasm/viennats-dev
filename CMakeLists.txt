@@ -198,7 +198,7 @@ IF(NOT BUILD_WASM)
     # set(VTK_DIR $ENV{VTK_DIR})
   ENDIF(VIENNATS_STATIC_BUILD)  
 ELSE(NOT BUILD_WASM)
-  set(VTK_DIR "${WASM_ROOT}/vtk/install/lib/cmake/vtk-8.1")
+  set(VTK_DIR "${WASM_ROOT}/vtk/install/lib/cmake/vtk-8.2")
 ENDIF(NOT BUILD_WASM) 
 
 
@@ -215,7 +215,7 @@ IF(VTK_FOUND)
   ELSE()
     # problem with vtkFiltersParallel, so remove it, seems to be not used
     # set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML)
-    set(VTK_INC_DIR "${WASM_ROOT}/vtk/install/include/vtk-8.1")
+    set(VTK_INC_DIR "${WASM_ROOT}/vtk/install/include/vtk-8.2")
     IF(BUILD_TBB)    
       set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/buildwasmtbb/")
     ELSE(BUILD_TBB)   
@@ -285,6 +285,7 @@ ELSE(NOT BUILD_WASM)
   # -s BINARYEN_EXTRA_PASSES=\"--disable-bulk-memory\" 
   # 536870912, 268435456, 134217728
   set(OLEVEL "O2 --closure 1 --llvm-lto 1 -g1")
+  # set(OLEVEL "O2")
   IF(BUILD_TBB)
   set(USE_PTHREADS "1")
   set(WORKER_POOL "-s PTHREAD_POOL_SIZE=0")

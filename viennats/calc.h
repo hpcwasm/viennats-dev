@@ -407,7 +407,7 @@ void CalculateCurvatureVectors(const LS &l,
       } else {
         // std::cout << "warning!!!dlkajf" << std::endl;
         if (num > 0) {
-          *curv = -std::numeric_limits<double>::max();
+          *curv = std::numeric_limits<double>::lowest();
         } else {
           *curv = std::numeric_limits<double>::max();
         }
@@ -786,7 +786,7 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
           while (true) {
             // initialize the travelled distance from the intersection with -oo
             double travelled_distance_from_intersection(
-                -std::numeric_limits<double>::max());
+                std::numeric_limits<double>::lowest());
             // std::cout << "DTFI\n";
             // the indices of the surface grid cell which was previously visited
             int last_surface_cell_indices[D];
@@ -916,7 +916,7 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
                 // Check if Surface is intersected between position and
                 // position+max_distance_in_box*direction
                 if (travelled_distance_from_intersection ==
-                    -std::numeric_limits<double>::max()) {
+                    std::numeric_limits<double>::lowest()) {
 
                   // get distances at corners
                   double Rho[1 << D];
@@ -1238,7 +1238,7 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
                     }
                   }
                 }
-              }
+              } 
 
               // Dealing with particles beyond simulation boundaries and
               // boundary conditions:
@@ -1249,7 +1249,7 @@ void CalculateRates(const ModelType &Model, const ParameterType &Parameter,
               //######################################################################
 
               if (travelled_distance_from_intersection !=
-                  -std::numeric_limits<double>::max()) {
+                  std::numeric_limits<double>::lowest()) {
                 travelled_distance_from_intersection += max_distance_in_box;
                 if (travelled_distance_from_intersection >=
                     further_tracking_distance)

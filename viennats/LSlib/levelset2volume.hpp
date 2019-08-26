@@ -17,13 +17,18 @@
 #include <vtkProbeFilter.h>
 #include <vtkGeometryFilter.h>
 #include <vtkIncrementalOctreePointLocator.h>
+#include <vtkIndent.h>
 
 #include "vector.hpp"
 
-//#define DEBUGOUTPUT
+#define DEBUGOUTPUT
 #ifdef DEBUGOUTPUT
   #include <vtkXMLRectilinearGridWriter.h>
   #include <vtkXMLUnstructuredGridWriter.h>
+#endif
+
+#if defined(BUILD_WASM)
+#include "vtswasm.h"
 #endif
 
 
@@ -36,7 +41,7 @@ namespace lvlset{
   vtkSmartPointer<vtkRectilinearGrid> LS2RectiLinearGrid(const LevelSetType& LevelSet,
       const double LSOffset=0.,
       int infiniteMinimum=std::numeric_limits<int>::max(),
-      int infiniteMaximum=-std::numeric_limits<int>::max()){
+      int infiniteMaximum=std::numeric_limits<int>::lowest()){
 
 
     typedef typename LevelSetType::grid_type2 GridType;
@@ -371,7 +376,7 @@ namespace lvlset{
 
 
     int totalMinimum = std::numeric_limits<int>::max();
-    int totalMaximum = -std::numeric_limits<int>::max();
+    int totalMaximum = std::numeric_limits<int>::lowest();
     for(auto it=LevelSets.begin(); it!=LevelSets.end(); ++it){
       if(it->num_active_pts() == 0) continue;
       for(unsigned i=0; i<D; ++i){
@@ -387,7 +392,7 @@ namespace lvlset{
     // Use vtkClipDataSet to slice the grid
     vtkSmartPointer<vtkTableBasedClipDataSet> clipper =
       vtkSmartPointer<vtkTableBasedClipDataSet>::New();
-    clipper->SetInputData(LS2RectiLinearGrid<removeBottom>(*(LevelSets.rbegin()), 0, totalMinimum, totalMaximum));  // last LS
+clipper->SetInputData(LS2RectiLinearGrid<removeBottom>(*(LevelSets.rbegin()), 0, totalMinimum, totalMaximum));  // last LS
     clipper->InsideOutOn();
     clipper->Update();
 
@@ -516,7 +521,7 @@ namespace lvlset{
         vtkSmartPointer<vtkXMLUnstructuredGridWriter> gwriter = vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
         gwriter->SetFileName("after_removal.vtu");
         gwriter->SetInputData(volumeMesh);
-        gwriter->Update();
+        gwriter->Update();          
       }
     #endif
 

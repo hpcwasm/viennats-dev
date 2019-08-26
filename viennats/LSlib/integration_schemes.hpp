@@ -993,7 +993,7 @@ namespace lvlset {
 
                 } else {
                     if (num>0) {
-                        s=-std::numeric_limits<double>::max();
+                        s=std::numeric_limits<double>::lowest();
                     } else {
                         s=std::numeric_limits<double>::max();
                     }
