@@ -838,7 +838,7 @@ int warmup(int numtbbthreads) {
     for (int n = range.begin(); n != range.end(); ++n) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       // std::cout << "range[n]=" << n << std::endl;
-      dummyval[n] = n;
+      dummyval[n] = n; 
        threadids[n] = tbb::this_task_arena::current_thread_index();
       // std::cout << "this_task_arena::current_thread_index()"<<tbb::this_task_arena::current_thread_index()<<  std::endl;
     }

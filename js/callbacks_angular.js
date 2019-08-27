@@ -1,5 +1,5 @@
-if (ENVIRONMENT_IS_WORKER)
-{
+// if (ENVIRONMENT_IS_WORKER)
+// {
 Module['print'] = function (text) {
     var message = { 'stdout': true, 'text': text };
     postMessage(message);
@@ -8,10 +8,10 @@ Module['printErr'] = function (text) {
     var message = { 'stderr': true, 'text': text };
     postMessage(message);
 };
-} else 
-{
+// } else 
+// {
     
-}
+// }
 Module['CPPCallback'] = function (str) {
     console.log('(worker) CPPCallback received, forwarding it to main');
     var j = JSON.parse(str)
