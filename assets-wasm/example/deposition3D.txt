@@ -9,7 +9,7 @@ num_dimensions = 3;
 input_scale=0.5e-6;
 
 cfl_condition = 0.5;
-grid_delta=10e-6;
+grid_delta=1e-6;
 
 
 open_boundary="+y";
@@ -26,7 +26,7 @@ print_rates=false;
 print_velocities=false;
 print_materials=false;
 print_vtp=false;
-print_explicit_lvst=true;
+print_explicit_lvst=false;
 print_lvst=false;
 print_volume_hull=true;
 print_volume_tetra=false;
@@ -49,9 +49,9 @@ processes = {
 	};
 	grow_new_oxide=true;
 	final_output=true;
-        output_volume={0,0.1};
+        //output_volume={0,0.1};
 
-        output_times={0,0.1};
+        //output_times={0,0.1};
      }
 };
 

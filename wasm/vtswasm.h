@@ -4,7 +4,7 @@
 #include "json.hpp"
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
-   
+    
 using json = nlohmann::json;
  
 
@@ -18,7 +18,9 @@ public:
     wasm::vtswasm::callbackFunction = cb;
   } 
   static void executeJSCallback(std::string message) {
-    // wasm::vtswasm::callbackFunction(message);
+    #ifndef _TBB // TODO repair embind registration for PTHREADS
+      wasm::vtswasm::callbackFunction(message);
+    #endif 
   }
   static void SimulationReady(double runtime) {
     json j = {{"simready", true}, {"runtime", runtime}};

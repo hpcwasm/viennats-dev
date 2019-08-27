@@ -13,13 +13,25 @@ set(BUILD_WASM false CACHE BOOL "build webassembly")
 set(BUILD_WASM_STANDALONE false CACHE BOOL "build webassembly standalone")
 set(BUILD_TBB false CACHE BOOL "build tbb, no omp")
 
+IF(NOT BUILD_TBB)
+  set(BUILD_DIR_NAME "build")
+ELSE(NOT BUILD_TBB)
+  set(BUILD_DIR_NAME "buildtbb")
+ENDIF(NOT BUILD_TBB)
+
 IF(BUILD_WASM)
   # set(WASM_BOOST_LIB_DIR "$ENV{HPCWASM_LIB_DIR_BOOST}")
   # set(WASM_BOOST_INCLUDE_DIR "$ENV{HPCWASM_INCLUDE_DIR_BOOST}")
-  set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_CONFIG_DIR_VTK}")  
-  set(WASM_ROOT "/home/manstetten/github_wasm")
+  # set(WASM_VTK_CMAKE_DIR "$ENV{HPCWASM_CONFIG_DIR_VTK}")  
+  set(WASM_ROOT "/home/manstetten/github_vts")
   add_definitions(-DBUILD_WASM)
   add_definitions(-D_WASM)
+  IF(NOT BUILD_TBB)
+    set(BUILD_DIR_NAME "buildwasm")
+  ELSE(NOT BUILD_TBB)
+    set(BUILD_DIR_NAME "buildwasmtbb")
+  ENDIF(NOT BUILD_TBB)
+
 ELSE(BUILD_WASM)  
 set(CMAKE_CXX_COMPILER "clang++" CACHE STRING "clang compiler" FORCE)
 ENDIF(BUILD_WASM) 
@@ -107,8 +119,10 @@ IF(NOT BUILD_WASM)
   # SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
   ELSE(NOT BUILD_TBB)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Wno-unknown-pragmas")
-    set(TBB_BIN_DIR "${WASM_ROOT}/tbb/build/linux_intel64_gcc_cc7.3.0_libc2.27_kernel4.15.0_release")
+    set(TBB_BIN_DIR "${WASM_ROOT}/tbb/${BUILD_DIR_NAME}/linux_intel64_gcc_cc7.3.0_libc2.27_kernel4.15.0_release")
+    message("TBB_BIN_DIR=" ${TBB_BIN_DIR})
     set(TBB_INC_DIR "${WASM_ROOT}/tbb/include")
+    message("TBB_INC_DIR=" ${TBB_INC_DIR})
     set(TBB_LIBRARIES "tbb")
     ADD_DEFINITIONS ( -pthread)
     INCLUDE_DIRECTORIES(${TBB_INC_DIR})
@@ -157,12 +171,12 @@ ELSE(NOT BUILD_WASM)
   set(BOOST_INC_DIR "${WASM_ROOT}/boost")
   # set(Boost_LIBRARIES "${WASM_BOOST_LIB_DIR}/boost_filesystem.bc;${WASM_BOOST_LIB_DIR}/boost_system.bc")
   IF(BUILD_TBB)
-    set(BOOST_OBJ_DIR_FILESYSTEM "${WASM_ROOT}/boost/buildwasmtbb/boost/bin.v2/libs/filesystem/build/clang-linux-emscripten/release/link-static/threading-multi/visibility-hidden/")
-    set(BOOST_OBJ_DIR_SYSTEM "${WASM_ROOT}/boost/buildwasmtbb/boost/bin.v2/libs/system/build/clang-linux-emscripten/release/link-static/threading-multi/visibility-hidden/")  
-  ELSE(BUILD_TBB)
-    set(BOOST_OBJ_DIR_FILESYSTEM "${WASM_ROOT}/boost/buildwasm/boost/bin.v2/libs/filesystem/build/clang-linux-emscripten/release/link-static/visibility-hidden/")
-    set(BOOST_OBJ_DIR_SYSTEM "${WASM_ROOT}/boost/buildwasm/boost/bin.v2/libs/system/build/clang-linux-emscripten/release/link-static/visibility-hidden/")  
+    set(THREADING_MULTI "threading-multi")
+  ELSE(BUILD_TBB) 
+    set(THREADING_MULTI "")
   ENDIF(BUILD_TBB)
+  set(BOOST_OBJ_DIR_FILESYSTEM "${WASM_ROOT}/boost/${BUILD_DIR_NAME}/boost/bin.v2/libs/filesystem/build/clang-linux-emscripten/release/link-static/${THREADING_MULTI}/visibility-hidden/")
+  set(BOOST_OBJ_DIR_SYSTEM "${WASM_ROOT}/boost/${BUILD_DIR_NAME}/boost/bin.v2/libs/system/build/clang-linux-emscripten/release/link-static/${THREADING_MULTI}/visibility-hidden/")    
   FILE(GLOB_RECURSE BOOST_OBJECTS_FILESYSTEM ${BOOST_OBJ_DIR_FILESYSTEM}*.o)    
   FILE(GLOB_RECURSE BOOST_OBJECTS_SYSTEM ${BOOST_OBJ_DIR_SYSTEM}*.o)   
   message("BOOST_OBJECTS_FILESYSTEM=" ${BOOST_OBJECTS_FILESYSTEM})
@@ -198,7 +212,7 @@ IF(NOT BUILD_WASM)
     # set(VTK_DIR $ENV{VTK_DIR})
   ENDIF(VIENNATS_STATIC_BUILD)  
 ELSE(NOT BUILD_WASM)
-  set(VTK_DIR "${WASM_ROOT}/vtk/install/lib/cmake/vtk-8.2")
+  set(VTK_DIR "${WASM_ROOT}/vtk/${BUILD_DIR_NAME}/install/lib/cmake/vtk-8.2")
 ENDIF(NOT BUILD_WASM) 
 
 
@@ -215,11 +229,11 @@ IF(VTK_FOUND)
   ELSE()
     # problem with vtkFiltersParallel, so remove it, seems to be not used
     # set(VTK_LIBRARIES vtksys;vtkFiltersCore;vtkFiltersGeneral;vtkFiltersGeometry;vtkIOXML)
-    set(VTK_INC_DIR "${WASM_ROOT}/vtk/install/include/vtk-8.2")
+    set(VTK_INC_DIR "${WASM_ROOT}/vtk/${BUILD_DIR_NAME}/install/include/vtk-8.2")
     IF(BUILD_TBB)    
-      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/buildwasmtbb/")
+      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/${BUILD_DIR_NAME}/")
     ELSE(BUILD_TBB)   
-      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/buildwasm/") 
+      set(VTK_OBJ_DIR "${WASM_ROOT}/vtk/${BUILD_DIR_NAME}/") 
     ENDIF(BUILD_TBB)
     INCLUDE_DIRECTORIES(${VTK_INC_DIR})
     FILE(GLOB_RECURSE VTK_OBJECTS ${VTK_OBJ_DIR}*.o)  
@@ -263,6 +277,7 @@ ELSE(NOT BUILD_WASM)
   # copy files to assets folder
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/assets)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/callbacks.js ${CMAKE_CURRENT_BINARY_DIR}/callbacks.js COPYONLY)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/js/callbacks_angular.js ${CMAKE_CURRENT_BINARY_DIR}/callbacks_angular.js COPYONLY)  
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/vtsworker.js ${CMAKE_CURRENT_BINARY_DIR}/vtsworker.js COPYONLY)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/bootstrap.js ${CMAKE_CURRENT_BINARY_DIR}/bootstrap.js COPYONLY)
   configure_file(${CMAKE_CURRENT_LIST_DIR}/js/main.html ${CMAKE_CURRENT_BINARY_DIR}/main.html  COPYONLY)
@@ -284,33 +299,33 @@ ELSE(NOT BUILD_WASM)
   # -s DEFAULT_PTHREAD_STACK_SIZE=8388608 \
   # -s BINARYEN_EXTRA_PASSES=\"--disable-bulk-memory\" 
   # 536870912, 268435456, 134217728
-  set(OLEVEL "O2 --closure 1 --llvm-lto 1 -g1")
-  # set(OLEVEL "O2")
+  set(OLEVEL "O3 --llvm-lto 1")
+  # set(OLEVEL "O1")
   IF(BUILD_TBB)
-  set(USE_PTHREADS "1")
-  set(WORKER_POOL "-s PTHREAD_POOL_SIZE=0")
+  set(USE_PTHREADS "-s USE_PTHREADS=1")
+  set(EXPORT_ES6 "-s EXPORT_ES6=0")
+  set(WORKER_POOL "-s PTHREAD_POOL_SIZE=4")
   ELSE(BUILD_TBB)
-  set(USE_PTHREADS "0")
+  set(EXPORT_ES6 "-s EXPORT_ES6=0")
+  set(USE_PTHREADS "-s USE_PTHREADS=0")
   ENDIF(BUILD_TBB)
   
   set_target_properties(${viennaTS} PROPERTIES 
   SUFFIX "${WASM_SUFFIX}" 
-  COMPILE_FLAGS " -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  COMPILE_FLAGS " -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb -s WASM_MEM_MAX=1536mb  --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 ${EXPORT_ES6} -s EXPORT_NAME=VTS ${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=0 --pre-js callbacks_angular.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
   --embed-file assets/deposition3D.txt@/deposition3D.txt \
   --embed-file assets/trench.txt@/trench.txt \
   --embed-file assets/trench.vtk@/trench.vtk"
-  LINK_FLAGS "  -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb  --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 -s EXPORT_ES6=0 -s EXPORT_NAME=VTS -s USE_PTHREADS=${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=1 --pre-js callbacks.js \
+  LINK_FLAGS "  -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] -s WASM_ASYNC_COMPILATION=1  -s ERROR_ON_UNDEFINED_SYMBOLS=0 -Wcast-align -Wover-aligned -s TOTAL_MEMORY=512mb  -s WASM_MEM_MAX=1536mb   --bind -v -s ALLOW_MEMORY_GROWTH=1 -s SAFE_HEAP=0 -s WARN_UNALIGNED=1 -s MODULARIZE=1 ${EXPORT_ES6} -s EXPORT_NAME=VTS ${USE_PTHREADS} ${WORKER_POOL} -${OLEVEL} -s ASSERTIONS=0 --pre-js callbacks_angular.js \
   --embed-file assets/3d_hole.vtk@/3d_hole.vtk \
   --embed-file assets/deposition3D.txt@/deposition3D.txt \
   --embed-file assets/trench.txt@/trench.txt \
   --embed-file assets/trench.vtk@/trench.vtk" ) 
-
-
 ENDIF(NOT BUILD_WASM) 
 
-message("Boost_LIBRARIES=" ${Boost_LIBRARIES})
 IF(NOT BUILD_WASM) 
+message("Boost_LIBRARIES=" ${Boost_LIBRARIES})
 IF(VIENNATS_STATIC_BUILD)
   TARGET_LINK_LIBRARIES(${viennaTS} ${LIBRARIES}  ${VTK_LIBRARIES}  ${TBB_LIBRARIES} ${Boost_LIBRARIES} "-static")
 ELSE(VIENNATS_STATIC_BUILD)

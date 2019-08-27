@@ -9,10 +9,10 @@
 
    License:         MIT (X11), see file LICENSE in the base directory
 ============================================================================= */
-
+ 
 // COMPILE OPTIONS#####################################
 #define TEST_MODE
-#define VERBOSE
+// #define VERBOSE
 // #define WASM_VERBOSE
 // Dimensions
 #define DIMENSION_3
@@ -821,36 +821,8 @@ int runfile(const std::string filename, int numtbbthreads) {
 
   return 5;
 }
-
+ 
 #ifdef _TBB
-int warmupProxy(int numtbbthreads) {
-  // tbb::task_scheduler_init sched(numtbbthreads);
-
-  // dummy warmup using maxmum num thread directly from main thread
-
-  // pthread_t t1;
-
-  std::thread t1(&warmup, numtbbthreads);
-  // pthread_create(&t1, NULL, &runfile, (void *)&numtbbthreads );
-
-  // void* result;
-  // pthread_join(t1,&result);
-  // pthread_detach(t1);
-  t1.detach();
-  return 0;
-}
-
-// int main()
-// {
-//     runfile("deposition3D.txt",1);
-//   return 0;
-// }
-
-
-int init(int numtbbthreads) {
-  // sched = new tbb::task_scheduler_init(numtbbthreads);
-  return 4;
-}
 
 int warmup(int numtbbthreads) {
 
@@ -890,8 +862,6 @@ int warmup(int numtbbthreads) {
   return 5;
 }
 
-std::string getOutputFilename() { return "some/path/to/a/file.vtk"; }
-
 int warmupProxy(int numtbbthreads) {
   // tbb::task_scheduler_init sched(numtbbthreads);
 
@@ -908,6 +878,22 @@ int warmupProxy(int numtbbthreads) {
   t1.detach();
   return 0;
 }
+
+// int main()
+// {
+//     runfile("deposition3D.txt",1);
+//   return 0;
+// }
+
+
+int init(int numtbbthreads) {
+  // sched = new tbb::task_scheduler_init(numtbbthreads);
+  return 4;
+}
+
+
+
+
 
 
 int runfileProxy(const std::string filename, int numtbbthreads) {
@@ -956,7 +942,7 @@ EMSCRIPTEN_BINDINGS(viennatswasm) {
   emscripten::class_<wasm::vtswasm>("vtswasm").class_function(
       "SetCallback", &wasm::vtswasm::SetCallback);
 }
-#endif _TBB
+#endif //_TBB
 std::string getOutputFilename() { return "some/path/to/a/file.vtk"; }
 
 // https://stackoverflow.com/questions/12358877/passing-js-function-to-emscripten-generated-code

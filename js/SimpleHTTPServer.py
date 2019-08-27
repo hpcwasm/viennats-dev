@@ -13,6 +13,7 @@ def main():
     Handler.extensions_map['.html'] = 'text/html'
     # allows for streaming compile
     Handler.extensions_map['.wasm'] = 'application/wasm'
+    # Handler.extensions_map['viennats.js'] = 'module'
 
     socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer(("", PORT), Handler)

@@ -1,41 +1,38 @@
 # build instructions
 
-## build dependencies & boilerplate ()
-follow instructions in boilerplate repo
+## build boilerplate + dependnecies 
+follow instructions
 
-## set folders
+## active emscripten
 ```bash
-export HPCWASM_BASE_DIR_BOILERPLATE=/home/manstetten/github_hpcwasm/boilerplate
-export            VIENNATS_BASE_DIR=/home/manstetten/github_hpcwasm/viennats-dev
-export          VIENNATS_INSTALL_DIR=/home/manstetten/github_hpcwasm/viennats-webapp/src/assets/buildwasm
-
-export HPCWASM_BASE_DIR_EMSDK=$HPCWASM_BASE_DIR_BOILERPLATE/emsdk
+export WASM_ROOT="/home/manstetten/github_vts"
+${WASM_ROOT}/emsdk/emsdk activate --embedded 1.38.40-upstream # Make the "latest" SDK "active" for the current user ( this generates local .emscripten file) 
+source "${WASM_ROOT}/emsdk/emsdk_env.sh"  # Activate PATH and other environment variables in the current session 
+export EMCC_WASM_BACKEND=1
 ```
 
+## compile vts
 
-## active emscripten 
+### native (openMP)
 ```bash
-$HPCWASM_BASE_DIR_EMSDK/emsdk activate --embedded latest-upstream # creates fresh  ./emscripten
-source "$HPCWASM_BASE_DIR_EMSDK/emsdk_env.sh" # sets paths
-# change WASM backend to WASM_LLVM_BACKEND by replacing string in ./emscripten
-sed -i "/LLVM_ROOT =/c\LLVM_ROOT = '$HPCWASM_BIN_DIR_LLVM'" $HPCWASM_BASE_DIR_EMSDK/.emscripten 
-export EMCC_DEBUG=1 # shows helpfull console output
-emcc -v # check config
+mkdir build && cd build
+emcmake cmake -DBUILD_WASM=OFF -DBUILD_TBB=OFF  ..
 ```
 
-# build viennats-dev (wasm)
-
+### native (tbb)
 ```bash
+mkdir build && cd build
+emcmake cmake -DBUILD_WASM=OFF -DBUILD_TBB=ON  ..
+```
 
-# external include and link folders
-export HPCWASM_LIB_DIR_BOOST=$HPCWASM_BASE_DIR_BOILERPLATE/boost/lib/emscripten
-export HPCWASM_INCLUDE_DIR_BOOST=$HPCWASM_BASE_DIR_BOILERPLATE/boost
-export HPCWASM_CONFIG_DIR_VTK=$HPCWASM_BASE_DIR_BOILERPLATE/vtk/install/lib/cmake/vtk-8.1
+### for wasm (without tbb)
+```bash
+mkdir buildwasm && cd buildwasm
+emcmake cmake -DBUILD_WASM=ON -DBUILD_TBB=OFF ..
+```
 
-mkdir -p $VIENNATS_BASE_DIR/buildwasm
-cd $VIENNATS_BASE_DIR/buildwasm
-
-# emcmake cmake -DBUILD_WASM=ON -DVIENNATS_STATIC_BUILD=ON  ..
-emcmake cmake -DBUILD_WASM=ON -DVIENNATS_STATIC_BUILD=ON -DCMAKE_INSTALL_PREFIX=$VIENNATS_INSTALL_DIR ..
+### for wasm (with tbb)
+```bash
+mkdir buildwasmtbb && cd buildwasmtbb
 emcmake cmake -DBUILD_WASM=ON -DBUILD_TBB=ON ..
 ```

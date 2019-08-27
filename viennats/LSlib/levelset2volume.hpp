@@ -21,7 +21,7 @@
 
 #include "vector.hpp"
 
-#define DEBUGOUTPUT
+// #define DEBUGOUTPUT
 #ifdef DEBUGOUTPUT
   #include <vtkXMLRectilinearGridWriter.h>
   #include <vtkXMLUnstructuredGridWriter.h>
